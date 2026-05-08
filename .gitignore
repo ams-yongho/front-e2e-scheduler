@@ -154,3 +154,7 @@ results/
 
 # 히스토리
 /.history
+.claude/settings.local.json
+
+# Serena
+/.serena
