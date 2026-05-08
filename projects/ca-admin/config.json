@@ -1,0 +1,6 @@
+{
+  "name": "ca-admin",
+  "path": "/Users/yongho/projects/ca-admin",
+  "command": "pnpm playwright test",
+  "slack_channel": "#qa-alerts"
+}
