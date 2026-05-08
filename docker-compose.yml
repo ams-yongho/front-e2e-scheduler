@@ -1,0 +1,9 @@
+services:
+  dashboard:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dashboard/dist:/usr/share/nginx/html/dashboard:ro
+      - ./results:/usr/share/nginx/html/results:ro
+    restart: unless-stopped
