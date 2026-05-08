@@ -32,7 +32,7 @@ export default function App() {
           })
         );
         setProjects(projectData);
-      } catch (e) {
+      } catch {
         setError('결과를 불러오지 못했습니다. Docker 컨테이너가 실행 중인지 확인하세요.');
       } finally {
         setLoading(false);
@@ -44,34 +44,91 @@ export default function App() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">불러오는 중...</p>
+        <p style={{ color: 'var(--text-muted)' }}>불러오는 중...</p>
       </div>
     );
   }
 
+  const passedCount = projects.filter(p => p.latest?.status === 'passed').length;
+  const failedCount = projects.filter(p => p.latest?.status === 'failed').length;
+  const noDataCount = projects.filter(p => !p.latest).length;
+
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b px-6 py-4">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <h1 className="text-xl font-semibold">E2E 테스트 대시보드</h1>
+    <div className="min-h-screen" style={{ background: '#010102' }}>
+      {/* Header */}
+      <header
+        style={{
+          borderBottom: '1px solid var(--border-subtle)',
+          background: 'var(--surface-1)',
+        }}
+      >
+        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
+          <span
+            className="text-sm font-semibold tracking-tight"
+            style={{ color: 'var(--text-primary)' }}
+          >
+            E2E 테스트 대시보드
+          </span>
           {lastUpdated && (
-            <p className="text-sm text-muted-foreground">
-              마지막 실행: {new Date(lastUpdated).toLocaleString('ko-KR')}
-            </p>
+            <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
+              마지막 실행:{' '}
+              {new Date(lastUpdated).toLocaleString('ko-KR', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
           )}
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-6">
+      {/* Summary bar */}
+      {projects.length > 0 && (
+        <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+          <div className="mx-auto flex max-w-4xl items-center gap-5 px-6 py-2.5">
+            <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
+              {projects.length}개 프로젝트
+            </span>
+            {passedCount > 0 && (
+              <span className="text-xs font-medium" style={{ color: 'var(--success)' }}>
+                ● {passedCount} 통과
+              </span>
+            )}
+            {failedCount > 0 && (
+              <span className="text-xs font-medium" style={{ color: 'var(--danger)' }}>
+                ● {failedCount} 실패
+              </span>
+            )}
+            {noDataCount > 0 && (
+              <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
+                ● {noDataCount} 데이터 없음
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main */}
+      <main className="mx-auto max-w-4xl px-6 py-5">
         {error && (
-          <div className="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700">{error}</div>
+          <div
+            className="mb-4 rounded-lg px-4 py-3 text-sm"
+            style={{
+              background: 'var(--danger-muted)',
+              color: 'var(--danger)',
+              border: '1px solid rgba(229,72,77,0.2)',
+            }}
+          >
+            {error}
+          </div>
         )}
         {projects.length === 0 && !error ? (
-          <p className="text-center text-muted-foreground">
+          <p className="py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
             등록된 프로젝트가 없습니다.
           </p>
         ) : (
-          <div className="grid gap-4">
+          <div className="flex flex-col gap-3">
             {projects.map(p => (
               <ProjectCard
                 key={p.name}
