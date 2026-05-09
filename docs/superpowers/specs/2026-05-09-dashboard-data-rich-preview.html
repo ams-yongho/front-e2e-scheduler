@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E2E 대시보드 — 데이터 풍부 시안</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/variable/pretendardvariable.min.css" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+ul { list-style: none; }
+button { font-family: inherit; cursor: pointer; }
+
+:root {
+  --canvas: #010102;
+  --surface-1: #16171d;
+  --surface-2: #1e1f26;
+  --surface-3: #26272f;
+  --surface-4: #2e303a;
+
+  --text-primary: #f7f8f8;
+  --text-secondary: #d0d6e0;
+  --text-muted: #8a8f98;
+  --text-faint: #62666d;
+
+  --accent: #5e6ad2;
+  --accent-hover: #828fff;
+  --accent-muted: rgba(94, 106, 210, 0.15);
+  --success: #27a644;
+  --success-muted: rgba(39, 166, 68, 0.14);
+  --danger: #e5484d;
+  --danger-muted: rgba(229, 72, 77, 0.12);
+  --warning: #f5a623;
+  --warning-muted: rgba(245, 166, 35, 0.14);
+
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.10);
+
+  --font-sans: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html, body {
+  background: var(--canvas);
+  color: var(--text-primary);
+  font: 14px/1.5 var(--font-sans);
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* === Header === */
+.app-header {
+  border-bottom: 1px solid var(--border-subtle);
+  background:
+    linear-gradient(180deg, rgba(94,106,210,0.05) 0%, transparent 100%),
+    var(--surface-1);
+  position: sticky; top: 0; z-index: 10;
+  backdrop-filter: saturate(150%) blur(8px);
+}
+.app-header-inner {
+  max-width: 1080px; margin: 0 auto;
+  padding: 13px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.app-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 600;
+  letter-spacing: -0.012em;
+}
+.app-logo {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: white;
+  box-shadow: 0 0 0 1px rgba(94,106,210,0.25), 0 4px 14px rgba(94,106,210,0.25);
+}
+.app-meta {
+  font-size: 11px; color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* === Preview banner === */
+.preview-banner {
+  background: linear-gradient(90deg, rgba(94,106,210,0.04), rgba(94,106,210,0.12), rgba(94,106,210,0.04));
+  border-bottom: 1px solid rgba(94,106,210,0.15);
+  padding: 9px 24px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--accent-hover);
+  letter-spacing: 0.01em;
+}
+.preview-banner code {
+  font-family: var(--font-mono);
+  background: rgba(255,255,255,0.05);
+  padding: 1px 6px;
+  border-radius: 3px;
+  margin: 0 2px;
+  font-size: 10.5px;
+}
+
+/* === Summary bar === */
+.summary {
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(0,0,0,0.2);
+}
+.summary-inner {
+  max-width: 1080px; margin: 0 auto;
+  padding: 11px 24px;
+  display: flex; align-items: center; gap: 22px;
+  font-size: 12px;
+}
+.summary-stat {
+  display: flex; align-items: center; gap: 7px;
+  color: var(--text-muted);
+}
+.summary-stat-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+.summary-stat-dot.success { background: var(--success); box-shadow: 0 0 8px var(--success); }
+.summary-stat-dot.danger { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+.summary-stat-dot.warning { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+.summary-stat-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  margin-right: 1px;
+}
+.summary-divider {
+  width: 1px; height: 12px;
+  background: var(--border-subtle);
+}
+
+/* === Main === */
+main {
+  max-width: 1080px; margin: 0 auto;
+  padding: 22px 24px 60px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+
+/* === Card === */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  overflow: hidden;
+  animation: card-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+.card.failed { border-left: 2px solid var(--danger); }
+.card.passed { border-left: 2px solid var(--success); }
+.card.no-data { border-left: 2px solid var(--surface-4); }
+.card:nth-child(1) { animation-delay: 0.05s; }
+.card:nth-child(2) { animation-delay: 0.13s; }
+.card:nth-child(3) { animation-delay: 0.21s; }
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card-header {
+  display: flex; align-items: center; gap: 16px;
+  padding: 16px 22px 4px;
+}
+.card-title {
+  flex: 1; font-size: 15px; font-weight: 600;
+  letter-spacing: -0.014em;
+  display: flex; align-items: baseline; gap: 10px;
+}
+.card-time {
+  font-size: 11px; color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums; font-weight: 400;
+}
+.sparkline-wrap {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+}
+.sparkline { display: block; }
+.sparkline-label {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-faint);
+  letter-spacing: 0.02em;
+}
+
+.badge {
+  font-size: 11px; font-weight: 500;
+  padding: 3px 10px; border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.badge.passed { background: var(--success-muted); color: var(--success); }
+.badge.failed { background: var(--danger-muted); color: var(--danger); }
+.badge.no-data { background: var(--surface-3); color: var(--text-muted); }
+
+/* === Stats grid === */
+.stats {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr 1fr 1fr;
+  gap: 26px;
+  padding: 14px 22px 18px;
+}
+.stat-label {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+  display: flex; align-items: baseline; gap: 6px;
+  line-height: 1.1;
+}
+.stat-value.danger { color: var(--danger); }
+.stat-value.warning { color: var(--warning); }
+.stat-value.muted { color: var(--text-faint); }
+.stat-value-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.progress {
+  margin-top: 10px;
+  height: 4px;
+  background: var(--surface-3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* === Browsers row === */
+.browsers {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border-subtle);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 18px;
+  font-size: 12px;
+}
+.browsers-label {
+  color: var(--text-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-weight: 500;
+  margin-right: 4px;
+}
+.browser {
+  display: flex; align-items: center; gap: 8px;
+}
+.browser-icon {
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  background: var(--surface-3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+.browser.failed .browser-icon { background: var(--danger-muted); color: var(--danger); box-shadow: inset 0 0 0 1px rgba(229,72,77,0.2); }
+.browser.passed .browser-icon { background: var(--success-muted); color: var(--success); box-shadow: inset 0 0 0 1px rgba(39,166,68,0.2); }
+.browser-info {
+  display: flex; flex-direction: column;
+  line-height: 1.25;
+}
+.browser-name {
+  font-size: 12px; color: var(--text-secondary); font-weight: 500;
+}
+.browser-stat {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+.browser-stat .fail { color: var(--danger); font-weight: 500; }
+
+/* === Section === */
+.section {
+  border-top: 1px solid var(--border-subtle);
+}
+.section-header {
+  padding: 14px 22px 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  font-weight: 500;
+}
+.section-header .count {
+  font-family: var(--font-mono);
+  background: var(--surface-3);
+  color: var(--text-muted);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+}
+.section-header .count.danger { background: var(--danger-muted); color: var(--danger); }
+.section-header .count.warning { background: var(--warning-muted); color: var(--warning); }
+
+/* === Failure === */
+.failures {
+  padding: 0 22px 8px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.failure {
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(229, 72, 77, 0.04);
+  border: 1px solid rgba(229, 72, 77, 0.13);
+}
+.failure-header {
+  display: flex; align-items: center; gap: 10px;
+}
+.failure-marker {
+  color: var(--danger);
+  font-weight: 600;
+  font-size: 13px;
+  width: 14px; text-align: center;
+}
+.failure-title {
+  flex: 1;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-primary);
+  letter-spacing: -0.005em;
+}
+.failure-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.browser-tag {
+  background: var(--surface-3);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  font-size: 10px;
+  border-radius: 999px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+}
+
+.steps {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  margin: 9px 0 0;
+  padding-left: 24px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.step {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  padding: 3px 9px;
+  border-radius: 4px;
+  letter-spacing: -0.01em;
+}
+.step.failed {
+  background: var(--danger-muted);
+  color: var(--danger);
+  font-weight: 500;
+  box-shadow: 0 0 0 1px rgba(229,72,77,0.2);
+}
+.step-arrow {
+  color: var(--text-faint);
+  font-size: 10px;
+}
+
+.failure-body {
+  margin-top: 12px;
+  margin-left: 24px;
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+.screenshot {
+  border-radius: 5px;
+  background:
+    radial-gradient(at 30% 30%, rgba(94,106,210,0.15), transparent 60%),
+    radial-gradient(at 70% 70%, rgba(229,72,77,0.12), transparent 60%),
+    linear-gradient(135deg, #2a2b35 0%, #1a1b22 100%);
+  border: 1px solid var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16/10;
+  cursor: zoom-in;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.screenshot:hover {
+  transform: scale(1.02);
+  border-color: var(--border-default);
+}
+.screenshot::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(0deg, transparent 0 8px, rgba(255,255,255,0.018) 8px 9px),
+    repeating-linear-gradient(90deg, transparent 0 8px, rgba(255,255,255,0.018) 8px 9px);
+}
+.screenshot::after {
+  content: '📷 screenshot';
+  position: absolute;
+  bottom: 6px; right: 8px;
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  background: rgba(0,0,0,0.55);
+  padding: 1px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.02em;
+}
+
+.failure-error {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  border-left: 2px solid var(--danger);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  overflow: auto;
+  max-height: 100px;
+}
+
+.failure-attachments {
+  margin-top: 10px;
+  margin-left: 24px;
+  display: flex; gap: 6px;
+  flex-wrap: wrap;
+}
+.attachment-link {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--accent-hover);
+  text-decoration: none;
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  background: rgba(94,106,210,0.08);
+  border: 1px solid rgba(94,106,210,0.14);
+  transition: background 0.15s, transform 0.15s;
+}
+.attachment-link:hover {
+  background: rgba(94,106,210,0.18);
+  transform: translateY(-1px);
+}
+
+/* === Flaky === */
+.flaky-list {
+  padding: 0 22px 14px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.flaky {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  background: rgba(245, 166, 35, 0.05);
+  border: 1px solid rgba(245, 166, 35, 0.13);
+}
+.flaky-bolt {
+  color: var(--warning);
+  font-size: 13px;
+  flex-shrink: 0;
+  width: 14px; text-align: center;
+}
+.flaky-name {
+  flex: 1;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.flaky-meta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.flaky-retries {
+  font-size: 10.5px;
+  color: var(--warning);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  background: var(--warning-muted);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+/* === Slow === */
+.slow-list {
+  padding: 4px 22px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.slow {
+  display: grid;
+  grid-template-columns: 320px 1fr 60px;
+  gap: 14px; align-items: center;
+}
+.slow-rank {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  margin-right: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.slow-name {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex; align-items: baseline; gap: 7px;
+  min-width: 0;
+}
+.slow-name-file {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.slow-bar-track {
+  height: 6px;
+  background: var(--surface-3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.slow-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%);
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.slow-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* === History === */
+.history-toggle {
+  border-top: 1px solid var(--border-subtle);
+  padding: 12px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  user-select: none;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: transparent;
+  border-left: none; border-right: none; border-bottom: none;
+  width: 100%;
+  transition: background 0.15s, color 0.15s;
+  text-align: left;
+}
+.history-toggle:hover {
+  background: var(--surface-2);
+  color: var(--text-secondary);
+}
+.history-toggle .chevron {
+  transition: transform 0.2s;
+  display: inline-block;
+  font-size: 10px;
+}
+.history-toggle.open .chevron {
+  transform: rotate(180deg);
+}
+.history {
+  border-top: 1px solid var(--border-subtle);
+  display: none;
+  padding: 8px 22px 18px;
+}
+.history.open {
+  display: block;
+  animation: fade-in 0.3s;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.history table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.history th {
+  text-align: left;
+  padding: 8px 0;
+  font-weight: 500;
+  color: var(--text-faint);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.history td {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+}
+.history tr:last-child td { border: 0; }
+.history td.passed { color: var(--success); font-weight: 500; }
+.history td.failed { color: var(--danger); font-weight: 500; }
+.history td.muted { color: var(--text-faint); }
+.history-mini-bar {
+  width: 56px; height: 4px;
+  background: var(--surface-3);
+  border-radius: 2px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+.history-mini-bar > div {
+  height: 100%;
+  background: var(--success);
+}
+.history-mini-bar > div.fail { background: var(--danger); }
+
+/* === Footer === */
+.footer-note {
+  max-width: 1080px;
+  margin: 30px auto 0;
+  padding: 18px 24px 36px;
+  font-size: 11px;
+  color: var(--text-faint);
+  text-align: center;
+  line-height: 1.8;
+}
+.footer-note strong {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-header-inner">
+    <div class="app-title">
+      <div class="app-logo">E</div>
+      <span>E2E 테스트 대시보드</span>
+    </div>
+    <div class="app-meta" id="lastRun"></div>
+  </div>
+</header>
+
+<div class="preview-banner">
+  📐 정적 디자인 시안 — Playwright의 풍부한 데이터를 활용했을 때의 모습.
+  실제 데이터 X · 채택 시 <code>parse-pw-results.js</code>와 dashboard 컴포넌트만 수정
+</div>
+
+<div class="summary">
+  <div class="summary-inner" id="summaryBar"></div>
+</div>
+
+<main id="cards"></main>
+
+<div class="footer-note">
+  새로 추가된 위젯 ·
+  <strong>30일 통과율 스파크라인</strong> ·
+  <strong>브라우저 매트릭스</strong> ·
+  <strong>step별 실행 흐름</strong> ·
+  <strong>실패 스크린샷 썸네일</strong> ·
+  <strong>Flaky 테스트</strong> ·
+  <strong>가장 느린 테스트 Top 5</strong>
+</div>
+
+<script>
+const projects = [
+  {
+    name: 'ca-admin',
+    date: '2026-05-09',
+    time: '10:02:18',
+    status: 'failed',
+    total: 87, passed: 82, failed: 3, flaky: 2, skipped: 0,
+    duration: '5분 23초',
+    browsers: [
+      { id: 'chromium', name: 'Chromium', icon: 'CR', passed: 28, failed: 1, total: 29 },
+      { id: 'webkit',   name: 'WebKit',   icon: 'WK', passed: 27, failed: 2, total: 29 },
+      { id: 'firefox',  name: 'Firefox',  icon: 'FF', passed: 27, failed: 0, total: 29 },
+    ],
+    trend: [100,100,98,100,100,96,100,100,94,100,90,100,98,100,100,96,100,100,100,98,100,96,98,100,94,96,98,98,94,94],
+    failures: [
+      {
+        test: '결제 완료 플로우',
+        file: 'checkout.spec.ts', line: 84,
+        browser: 'webkit',
+        steps: ['login', 'navigate /cart', 'click checkout', 'fill card form', 'click submit'],
+        failedStepIdx: 4,
+        error: "expect(locator).toBeVisible() failed\n  Locator: getByRole('button', { name: '결제 완료' })\n  Expected: visible\n  Received: <element(s) not found>\n  Timeout: 5000ms",
+      },
+      {
+        test: '대시보드 차트 렌더링',
+        file: 'dashboard.spec.ts', line: 156,
+        browser: 'chromium',
+        steps: ['login', 'navigate /dashboard', 'wait for chart canvas'],
+        failedStepIdx: 2,
+        error: 'TimeoutError: locator.waitFor: Timeout 30000ms exceeded\n  waiting for getByTestId("revenue-chart")',
+      },
+      {
+        test: '검색 필터 7개 → 5개 일치',
+        file: 'search.spec.ts', line: 42,
+        browser: 'webkit',
+        steps: ['login', 'open search modal', 'type "amass"', 'apply filter', 'count results'],
+        failedStepIdx: 4,
+        error: 'AssertionError: expected length 5, got 7\n  + expected - actual\n  -7\n  +5',
+      },
+    ],
+    flakyTests: [
+      { test: '로그인 후 토큰 갱신', file: 'auth.spec.ts', line: 28, retries: 1 },
+      { test: '실시간 알림 수신',   file: 'notifications.spec.ts', line: 67, retries: 2 },
+    ],
+    slowTests: [
+      { test: '대규모 데이터 임포트',   file: 'import.spec.ts',   durationMs: 28400 },
+      { test: '리포트 PDF 생성',       file: 'reports.spec.ts',  durationMs: 22100 },
+      { test: '결제 완료 플로우',       file: 'checkout.spec.ts', durationMs: 18700 },
+      { test: '대시보드 차트 렌더링',   file: 'dashboard.spec.ts',durationMs: 14200 },
+      { test: '사용자 권한 변경',       file: 'admin.spec.ts',    durationMs: 12500 },
+    ],
+    history: [
+      { date: '2026-05-09', status: 'failed', passed: 82, failed: 3, duration: '5분 23초', rate: 94 },
+      { date: '2026-05-08', status: 'failed', passed: 84, failed: 1, duration: '5분 8초',  rate: 99 },
+      { date: '2026-05-07', status: 'passed', passed: 85, failed: 0, duration: '5분 2초',  rate: 100 },
+      { date: '2026-05-06', status: 'failed', passed: 83, failed: 2, duration: '5분 14초', rate: 98 },
+      { date: '2026-05-05', status: 'passed', passed: 85, failed: 0, duration: '4분 58초', rate: 100 },
+    ],
+  },
+  {
+    name: 'ca-public',
+    date: '2026-05-09',
+    time: '10:08:47',
+    status: 'passed',
+    total: 42, passed: 42, failed: 0, flaky: 0, skipped: 0,
+    duration: '2분 11초',
+    browsers: [
+      { id: 'chromium', name: 'Chromium', icon: 'CR', passed: 14, failed: 0, total: 14 },
+      { id: 'webkit',   name: 'WebKit',   icon: 'WK', passed: 14, failed: 0, total: 14 },
+      { id: 'firefox',  name: 'Firefox',  icon: 'FF', passed: 14, failed: 0, total: 14 },
+    ],
+    trend: [100,100,100,100,100,100,98,100,100,100,100,100,98,100,100,100,100,100,100,100,100,100,100,100,100,100,98,100,100,100],
+    failures: [],
+    flakyTests: [],
+    slowTests: [
+      { test: '랜딩 페이지 로드',         file: 'landing.spec.ts', durationMs: 8400 },
+      { test: '뉴스 목록 페이지네이션',   file: 'news.spec.ts',    durationMs: 6200 },
+      { test: '문의 폼 제출',             file: 'contact.spec.ts', durationMs: 5100 },
+    ],
+    history: [
+      { date: '2026-05-09', status: 'passed', passed: 42, failed: 0, duration: '2분 11초', rate: 100 },
+      { date: '2026-05-08', status: 'passed', passed: 42, failed: 0, duration: '2분 14초', rate: 100 },
+      { date: '2026-05-07', status: 'passed', passed: 42, failed: 0, duration: '2분 9초',  rate: 100 },
+    ],
+  },
+  {
+    name: 'ca-mobile',
+    date: '2026-05-09',
+    time: '10:14:02',
+    status: 'failed',
+    total: 56, passed: 51, failed: 5, flaky: 0, skipped: 0,
+    duration: '6분 41초',
+    browsers: [
+      { id: 'chromium', name: 'Chromium',     icon: 'CR', passed: 18, failed: 1, total: 19 },
+      { id: 'webkit',   name: 'WebKit (iOS)', icon: 'WK', passed: 14, failed: 4, total: 18 },
+      { id: 'firefox',  name: 'Firefox',      icon: 'FF', passed: 19, failed: 0, total: 19 },
+    ],
+    trend: [100,100,98,96,100,98,96,100,94,98,90,92,98,96,94,92,90,94,96,92,90,88,92,94,90,88,92,90,91,91],
+    failures: [
+      {
+        test: '터치 스와이프 제스처',
+        file: 'gestures.spec.ts', line: 33,
+        browser: 'webkit',
+        steps: ['open page', 'mount card list', 'swipe left'],
+        failedStepIdx: 2,
+        error: 'page.touchscreen.swipe: Touch events not registered on iOS Safari',
+      },
+    ],
+    flakyTests: [],
+    slowTests: [
+      { test: '카드 무한 스크롤 50개',       file: 'feed.spec.ts',         durationMs: 31200 },
+      { test: '이미지 라이브러리 업로드',     file: 'media.spec.ts',        durationMs: 24800 },
+      { test: '푸시 알림 등록',              file: 'push.spec.ts',         durationMs: 19400 },
+      { test: '오프라인 모드 캐싱',          file: 'offline.spec.ts',      durationMs: 17900 },
+      { test: '로그인 → 마이페이지 이동',    file: 'mobile-auth.spec.ts',  durationMs: 11200 },
+    ],
+    history: [
+      { date: '2026-05-09', status: 'failed', passed: 51, failed: 5, duration: '6분 41초', rate: 91 },
+      { date: '2026-05-08', status: 'failed', passed: 50, failed: 6, duration: '6분 52초', rate: 89 },
+      { date: '2026-05-07', status: 'failed', passed: 52, failed: 4, duration: '6분 18초', rate: 93 },
+      { date: '2026-05-06', status: 'failed', passed: 53, failed: 3, duration: '6분 22초', rate: 95 },
+    ],
+  },
+];
+
+function escapeHTML(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function sparkline(data, opts={}) {
+  const { width=130, height=24, accent='var(--accent)' } = opts;
+  const max = 100;
+  const min = Math.min(...data, 86);
+  const range = max - min || 1;
+  const stepX = width / (data.length - 1);
+  const ys = data.map(v => height - ((v - min) / range) * (height - 6) - 3);
+  const points = data.map((v, i) => `${(i*stepX).toFixed(1)},${ys[i].toFixed(1)}`).join(' ');
+  const failDots = data.map((v, i) => v < 100
+    ? `<circle cx="${(i*stepX).toFixed(1)}" cy="${ys[i].toFixed(1)}" r="1.4" fill="var(--danger)" opacity="0.85"/>`
+    : '').join('');
+  const lastX = (data.length-1)*stepX;
+  const lastY = ys[ys.length-1];
+  const lastDot = `<circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="2.5" fill="${accent}" stroke="var(--surface-1)" stroke-width="1.5"/>`;
+  return `<svg class="sparkline" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <polyline points="${points}" fill="none" stroke="${accent}" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+    ${failDots}${lastDot}
+  </svg>`;
+}
+
+function browserHTML(b) {
+  const cls = b.failed > 0 ? 'failed' : 'passed';
+  const failPart = b.failed > 0 ? ` <span class="fail">· ${b.failed} 실패</span>` : '';
+  return `<div class="browser ${cls}">
+    <div class="browser-icon">${b.icon}</div>
+    <div class="browser-info">
+      <div class="browser-name">${b.name}</div>
+      <div class="browser-stat">${b.passed}/${b.total}${failPart}</div>
+    </div>
+  </div>`;
+}
+
+function stepsHTML(steps, failedIdx) {
+  return steps.map((s, i) => {
+    const cls = i === failedIdx ? 'step failed' : 'step';
+    const prefix = i === failedIdx ? '✕ ' : '';
+    const arrow = i < steps.length - 1 ? '<span class="step-arrow">→</span>' : '';
+    return `<span class="${cls}">${prefix}${escapeHTML(s)}</span>${arrow}`;
+  }).join('');
+}
+
+function failureHTML(f) {
+  return `<div class="failure">
+    <div class="failure-header">
+      <span class="failure-marker">✕</span>
+      <div class="failure-title">${escapeHTML(f.test)}</div>
+      <div class="failure-meta">${f.file}:${f.line}</div>
+      <div class="browser-tag">${f.browser}</div>
+    </div>
+    <div class="steps">${stepsHTML(f.steps, f.failedStepIdx)}</div>
+    <div class="failure-body">
+      <div class="screenshot"></div>
+      <div class="failure-error">${escapeHTML(f.error)}</div>
+    </div>
+    <div class="failure-attachments">
+      <a class="attachment-link" href="#">📷 screenshot.png</a>
+      <a class="attachment-link" href="#">🎬 video.webm</a>
+      <a class="attachment-link" href="#">🔍 trace.zip ↗</a>
+    </div>
+  </div>`;
+}
+
+function flakyHTML(f) {
+  return `<div class="flaky">
+    <span class="flaky-bolt">⚡</span>
+    <div class="flaky-name">${escapeHTML(f.test)}</div>
+    <div class="flaky-meta">${f.file}:${f.line}</div>
+    <div class="flaky-retries">retry ${f.retries}회 후 통과</div>
+  </div>`;
+}
+
+function slowHTML(s, maxMs, idx) {
+  const pct = (s.durationMs / maxMs) * 100;
+  const sec = (s.durationMs / 1000).toFixed(1);
+  return `<div class="slow">
+    <div class="slow-name">
+      <span class="slow-rank">${(idx+1).toString().padStart(2, '0')}</span>
+      ${escapeHTML(s.test)}
+      <span class="slow-name-file">· ${s.file}</span>
+    </div>
+    <div class="slow-bar-track"><div class="slow-bar" style="width:${pct.toFixed(1)}%"></div></div>
+    <div class="slow-time">${sec}s</div>
+  </div>`;
+}
+
+function historyRowHTML(h) {
+  const statusCls = h.status === 'passed' ? 'passed' : 'failed';
+  const statusText = h.status === 'passed' ? '통과' : '실패';
+  const failColor = h.failed > 0 ? 'failed' : 'muted';
+  return `<tr>
+    <td>${h.date}</td>
+    <td class="${statusCls}">${statusText}</td>
+    <td>${h.passed}</td>
+    <td class="${failColor}">${h.failed}</td>
+    <td>${h.duration}</td>
+    <td>
+      <span class="history-mini-bar"><div class="${h.failed > 0 ? 'fail' : ''}" style="width:${h.rate}%"></div></span>
+      <span class="${failColor}" style="font-size:10.5px">${h.rate}%</span>
+    </td>
+  </tr>`;
+}
+
+function renderCard(p) {
+  const passRate = p.total > 0 ? (p.passed / p.total) * 100 : 0;
+  const passRateInt = Math.round(passRate);
+  const statusCls = p.failed > 0 ? 'failed' : (p.total === 0 ? 'no-data' : 'passed');
+  const badgeText = p.failed > 0 ? '실패' : (p.total === 0 ? '데이터 없음' : '통과');
+  const progressColor = p.failed > 0 ? 'var(--danger)' : 'var(--success)';
+  const sparkAccent = p.failed > 0 ? 'var(--danger)' : 'var(--success)';
+  const slowMax = Math.max(...p.slowTests.map(s => s.durationMs), 1);
+
+  return `
+  <article class="card ${statusCls}">
+    <div class="card-header">
+      <div class="card-title">
+        ${p.name}
+        <span class="card-time">· ${p.date} ${p.time}</span>
+      </div>
+      <div class="sparkline-wrap">
+        ${sparkline(p.trend, { width: 130, height: 24, accent: sparkAccent })}
+        <div class="sparkline-label">최근 30일 통과율</div>
+      </div>
+      <span class="badge ${statusCls}">${badgeText}</span>
+    </div>
+
+    <div class="stats">
+      <div>
+        <div class="stat-label">통과율</div>
+        <div class="stat-value">
+          ${passRateInt}<span class="stat-value-sub">% · ${p.passed}/${p.total}</span>
+        </div>
+        <div class="progress">
+          <div class="progress-fill" style="width:${passRate}%; background:${progressColor};"></div>
+        </div>
+      </div>
+      <div>
+        <div class="stat-label">실행 시간</div>
+        <div class="stat-value">${p.duration}</div>
+      </div>
+      <div>
+        <div class="stat-label">실패</div>
+        <div class="stat-value ${p.failed > 0 ? 'danger' : 'muted'}">${p.failed}<span class="stat-value-sub">건</span></div>
+      </div>
+      <div>
+        <div class="stat-label">Flaky</div>
+        <div class="stat-value ${p.flaky > 0 ? 'warning' : 'muted'}">${p.flaky}<span class="stat-value-sub">건</span></div>
+      </div>
+    </div>
+
+    <div class="browsers">
+      <div class="browsers-label">브라우저</div>
+      ${p.browsers.map(browserHTML).join('')}
+    </div>
+
+    ${p.failures.length > 0 ? `
+      <div class="section">
+        <div class="section-header">
+          <span>실패 상세</span>
+          <span class="count danger">${p.failures.length}건</span>
+        </div>
+        <div class="failures">${p.failures.map(failureHTML).join('')}</div>
+      </div>` : ''}
+
+    ${p.flakyTests.length > 0 ? `
+      <div class="section">
+        <div class="section-header">
+          <span>Flaky 테스트 — 재시도 후 통과</span>
+          <span class="count warning">${p.flakyTests.length}건</span>
+        </div>
+        <div class="flaky-list">${p.flakyTests.map(flakyHTML).join('')}</div>
+      </div>` : ''}
+
+    ${p.slowTests.length > 0 ? `
+      <div class="section">
+        <div class="section-header">
+          <span>가장 느린 테스트</span>
+          <span class="count">Top ${p.slowTests.length}</span>
+        </div>
+        <div class="slow-list">${p.slowTests.map((s, i) => slowHTML(s, slowMax, i)).join('')}</div>
+      </div>` : ''}
+
+    <button class="history-toggle" onclick="this.classList.toggle('open');this.nextElementSibling.classList.toggle('open')">
+      <span>30일 히스토리 — ${p.history.length}건</span>
+      <span class="chevron">▾</span>
+    </button>
+    <div class="history">
+      <table>
+        <thead>
+          <tr>
+            <th>날짜</th><th>상태</th><th>통과</th><th>실패</th><th>소요시간</th><th>통과율</th>
+          </tr>
+        </thead>
+        <tbody>${p.history.map(historyRowHTML).join('')}</tbody>
+      </table>
+    </div>
+  </article>`;
+}
+
+const lastUpdated = new Date('2026-05-09T10:14:02');
+document.getElementById('lastRun').textContent = '마지막 실행 · ' + lastUpdated.toLocaleString('ko-KR', {
+  month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+});
+
+const passedCount = projects.filter(p => p.status === 'passed').length;
+const failedCount = projects.filter(p => p.status === 'failed').length;
+const flakyTotal = projects.reduce((sum, p) => sum + p.flaky, 0);
+const totalTests = projects.reduce((sum, p) => sum + p.total, 0);
+const failedTests = projects.reduce((sum, p) => sum + p.failed, 0);
+const passRate = totalTests > 0 ? Math.round(((totalTests - failedTests) / totalTests) * 100) : 0;
+
+document.getElementById('summaryBar').innerHTML = `
+  <div class="summary-stat">
+    <span class="summary-stat-value">${projects.length}</span>개 프로젝트
+  </div>
+  <div class="summary-divider"></div>
+  <div class="summary-stat">
+    <span class="summary-stat-dot success"></span>
+    <span class="summary-stat-value">${passedCount}</span>통과
+  </div>
+  <div class="summary-stat">
+    <span class="summary-stat-dot danger"></span>
+    <span class="summary-stat-value">${failedCount}</span>실패
+  </div>
+  ${flakyTotal > 0 ? `
+  <div class="summary-stat">
+    <span class="summary-stat-dot warning"></span>
+    <span class="summary-stat-value">${flakyTotal}</span>flaky
+  </div>` : ''}
+  <div class="summary-divider"></div>
+  <div class="summary-stat">
+    전체 통과율
+    <span class="summary-stat-value">${passRate}%</span>
+    <span class="summary-stat-value">${totalTests - failedTests}/${totalTests}</span>
+  </div>
+`;
+
+document.getElementById('cards').innerHTML = projects.map(renderCard).join('');
+</script>
+
+</body>
+</html>
