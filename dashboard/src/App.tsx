@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { fetchManifest, fetchResult, last30Days } from './api';
 import { ProjectCard } from './components/ProjectCard';
+import { computeTrend } from './lib/trend';
 import type { TestResult } from './types';
 
 interface ProjectData {
   name: string;
   latest: TestResult | null;
   history: TestResult[];
+  trend: number[];
 }
 
 export default function App() {
@@ -28,7 +30,12 @@ export default function App() {
               await Promise.all(days.map(date => fetchResult(name, date)))
             ).filter((r): r is TestResult => r !== null);
 
-            return { name, latest: results[0] ?? null, history: results };
+            return {
+              name,
+              latest: results[0] ?? null,
+              history: results,
+              trend: computeTrend(results),
+            };
           })
         );
         setProjects(projectData);
@@ -43,78 +50,51 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>
         <p style={{ color: 'var(--text-muted)' }}>불러오는 중...</p>
       </div>
     );
   }
 
-  const passedCount = projects.filter(p => p.latest?.status === 'passed').length;
-  const failedCount = projects.filter(p => p.latest?.status === 'failed').length;
-  const noDataCount = projects.filter(p => !p.latest).length;
+  const passedCount = projects.filter(p => p.latest && p.latest.failed === 0).length;
+  const failedCount = projects.filter(p => p.latest && p.latest.failed > 0).length;
+  const flakyTotal = projects.reduce((sum, p) => sum + (p.latest?.flaky || 0), 0);
+  const totalTests = projects.reduce((sum, p) => sum + (p.latest?.total || 0), 0);
+  const failedTests = projects.reduce((sum, p) => sum + (p.latest?.failed || 0), 0);
+  const passRate = totalTests > 0 ? Math.round(((totalTests - failedTests) / totalTests) * 100) : 0;
 
   return (
-    <div className="min-h-screen" style={{ background: '#010102' }}>
-      {/* Header */}
-      <header
-        style={{
-          borderBottom: '1px solid var(--border-subtle)',
-          background: 'var(--surface-1)',
-        }}
-      >
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3">
-          <span
-            className="text-sm font-semibold tracking-tight"
-            style={{ color: 'var(--text-primary)' }}
-          >
-            E2E 테스트 대시보드
-          </span>
-          {lastUpdated && (
-            <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
-              마지막 실행:{' '}
-              {new Date(lastUpdated).toLocaleString('ko-KR', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </span>
-          )}
-        </div>
-      </header>
+    <div style={{ minHeight: '100vh', background: '#010102' }}>
+      <Header lastUpdated={lastUpdated} />
 
-      {/* Summary bar */}
       {projects.length > 0 && (
-        <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-          <div className="mx-auto flex max-w-4xl items-center gap-5 px-6 py-2.5">
-            <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
-              {projects.length}개 프로젝트
-            </span>
-            {passedCount > 0 && (
-              <span className="text-xs font-medium" style={{ color: 'var(--success)' }}>
-                ● {passedCount} 통과
-              </span>
-            )}
-            {failedCount > 0 && (
-              <span className="text-xs font-medium" style={{ color: 'var(--danger)' }}>
-                ● {failedCount} 실패
-              </span>
-            )}
-            {noDataCount > 0 && (
-              <span className="text-xs" style={{ color: 'var(--text-faint)' }}>
-                ● {noDataCount} 데이터 없음
-              </span>
-            )}
-          </div>
-        </div>
+        <SummaryBar
+          projectCount={projects.length}
+          passedCount={passedCount}
+          failedCount={failedCount}
+          flakyTotal={flakyTotal}
+          passRate={passRate}
+          totalTests={totalTests}
+          failedTests={failedTests}
+        />
       )}
 
-      {/* Main */}
-      <main className="mx-auto max-w-4xl px-6 py-5">
+      <main
+        style={{
+          maxWidth: 1080,
+          margin: '0 auto',
+          padding: '22px 24px 60px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+        }}
+      >
         {error && (
           <div
-            className="mb-4 rounded-lg px-4 py-3 text-sm"
             style={{
+              borderRadius: 8,
+              padding: '12px 16px',
+              fontSize: 13,
               background: 'var(--danger-muted)',
               color: 'var(--danger)',
               border: '1px solid rgba(229,72,77,0.2)',
@@ -124,22 +104,171 @@ export default function App() {
           </div>
         )}
         {projects.length === 0 && !error ? (
-          <p className="py-12 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
             등록된 프로젝트가 없습니다.
           </p>
         ) : (
-          <div className="flex flex-col gap-3">
-            {projects.map(p => (
-              <ProjectCard
-                key={p.name}
-                projectName={p.name}
-                latest={p.latest}
-                history={p.history}
-              />
-            ))}
-          </div>
+          projects.map(p => (
+            <ProjectCard
+              key={p.name}
+              projectName={p.name}
+              latest={p.latest}
+              history={p.history}
+              trend={p.trend}
+            />
+          ))
         )}
       </main>
     </div>
   );
+}
+
+function Header({ lastUpdated }: { lastUpdated: string }) {
+  return (
+    <header
+      style={{
+        borderBottom: '1px solid var(--border-subtle)',
+        background:
+          'linear-gradient(180deg, rgba(94,106,210,0.05) 0%, transparent 100%), var(--surface-1)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+        backdropFilter: 'saturate(150%) blur(8px)',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 1080,
+          margin: '0 auto',
+          padding: '13px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, letterSpacing: '-0.012em' }}>
+          <div
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-hover) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 11,
+              fontWeight: 700,
+              color: 'white',
+              boxShadow: '0 0 0 1px rgba(94,106,210,0.25), 0 4px 14px rgba(94,106,210,0.25)',
+            }}
+          >
+            E
+          </div>
+          <span>E2E 테스트 대시보드</span>
+        </div>
+        {lastUpdated && (
+          <div style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
+            마지막 실행 ·{' '}
+            {new Date(lastUpdated).toLocaleString('ko-KR', {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}
+
+function SummaryBar({
+  projectCount,
+  passedCount,
+  failedCount,
+  flakyTotal,
+  passRate,
+  totalTests,
+  failedTests,
+}: {
+  projectCount: number;
+  passedCount: number;
+  failedCount: number;
+  flakyTotal: number;
+  passRate: number;
+  totalTests: number;
+  failedTests: number;
+}) {
+  return (
+    <div style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.2)' }}>
+      <div
+        style={{
+          maxWidth: 1080,
+          margin: '0 auto',
+          padding: '11px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 22,
+          fontSize: 12,
+          color: 'var(--text-muted)',
+        }}
+      >
+        <Stat>
+          <span style={statValueStyle}>{projectCount}</span>개 프로젝트
+        </Stat>
+        <Divider />
+        <Stat>
+          <Dot color="var(--success)" />
+          <span style={statValueStyle}>{passedCount}</span>통과
+        </Stat>
+        <Stat>
+          <Dot color="var(--danger)" />
+          <span style={statValueStyle}>{failedCount}</span>실패
+        </Stat>
+        {flakyTotal > 0 && (
+          <Stat>
+            <Dot color="var(--warning)" />
+            <span style={statValueStyle}>{flakyTotal}</span>flaky
+          </Stat>
+        )}
+        <Divider />
+        <Stat>
+          전체 통과율
+          <span style={statValueStyle}>{passRate}%</span>
+          <span style={statValueStyle}>{totalTests - failedTests}/{totalTests}</span>
+        </Stat>
+      </div>
+    </div>
+  );
+}
+
+const statValueStyle: React.CSSProperties = {
+  color: 'var(--text-primary)',
+  fontWeight: 500,
+  fontFamily: 'var(--font-mono)',
+  fontVariantNumeric: 'tabular-nums',
+  marginRight: 1,
+  marginLeft: 4,
+};
+
+function Stat({ children }: { children: React.ReactNode }) {
+  return <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{children}</div>;
+}
+
+function Dot({ color }: { color: string }) {
+  return (
+    <span
+      style={{
+        width: 6,
+        height: 6,
+        borderRadius: '50%',
+        background: color,
+        boxShadow: `0 0 8px ${color}`,
+      }}
+    />
+  );
+}
+
+function Divider() {
+  return <span style={{ width: 1, height: 12, background: 'var(--border-subtle)' }} />;
 }
