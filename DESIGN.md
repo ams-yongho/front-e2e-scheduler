@@ -58,6 +58,48 @@ Adapted from Linear's design system (https://github.com/VoltAgent/awesome-design
 - Failed: bg `rgba(229,72,77,0.15)`, text `#e5484d`
 - No data: bg Surface-3, text muted
 
+## New Widgets (2026-05-09)
+
+### Sparkline (30-day pass-rate)
+- SVG inline, 130×24px in card header.
+- Stroke 1.4px, color: success(#27a644) when no failures, danger(#e5484d) otherwise.
+- Failure dots (`r=1.4`, color danger, opacity 0.85) on points <100%.
+- Last data point dot (`r=2.5`, accent color, surface-1 stroke).
+
+### Browser Matrix
+- Horizontal row in card body, separated from stats by border-top.
+- Per browser: 22×22 rounded icon (Surface-3 default; success/danger muted on status), name (12px) + count (mono 10.5px).
+- Browser ID → icon mapping: chromium=CR, webkit=WK, firefox=FF.
+
+### Step Trail
+- Mono chips of 11px joined by `→` arrows.
+- Failed step: danger-muted bg, danger fg, prefix `✕ `, weight 500, inset 1px shadow.
+- Lives inside FailureList items, indented 24px.
+
+### Failure Card (extended)
+- Two-column body grid: 132px screenshot placeholder + flexible error pre.
+- Screenshot: aspect-ratio 16/10, layered radial+linear gradient placeholder, mono `📷 screenshot` tag at bottom-right.
+- Attachments row: pill-shaped chips (10.5px mono, accent-muted bg).
+
+### Flaky List
+- Yellow accent: warning-muted bg, warning border (rgba(245,166,35,0.13)).
+- Each row: ⚡ icon · test name · file:line · `retry N회 후 통과` pill.
+
+### Slow Tests List
+- 3-column grid: 320px name+file / 1fr bar track / 60px duration.
+- Bar fill: linear-gradient accent → accent-hover.
+- Duration in seconds with one decimal (e.g. `28.4s`).
+
+### Color Tokens (added)
+- `--warning: #f5a623`
+- `--warning-muted: rgba(245, 166, 35, 0.14)`
+- `--accent-muted: rgba(94, 106, 210, 0.15)`
+
+### Typography (changed)
+- Sans: `'Pretendard Variable'` (한글 가독성)
+- Mono: `'JetBrains Mono'` for numbers, file paths, code (tabular-nums)
+- Headings/body: 14px/1.5, letter-spacing -0.005em
+
 ## Layout
 - Page max-width: 896px (max-w-4xl)
 - Card gap: 12px
