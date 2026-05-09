@@ -98,15 +98,17 @@ function collectBrowsers(raw) {
   const projectNames = (raw.config?.projects || []).map(p => p.name);
   const counts = {};
   for (const id of projectNames) {
-    counts[id] = { id, ...browserMeta(id), passed: 0, failed: 0, total: 0 };
+    counts[id] = { id, ...browserMeta(id), passed: 0, failed: 0, flaky: 0, skipped: 0, total: 0 };
   }
   for (const { spec } of iterSpecs(raw.suites)) {
     for (const test of spec.tests || []) {
       const id = test.projectName || 'unknown';
-      if (!counts[id]) counts[id] = { id, ...browserMeta(id), passed: 0, failed: 0, total: 0 };
+      if (!counts[id]) counts[id] = { id, ...browserMeta(id), passed: 0, failed: 0, flaky: 0, skipped: 0, total: 0 };
       counts[id].total += 1;
       if (test.status === 'unexpected') counts[id].failed += 1;
-      else counts[id].passed += 1;
+      else if (test.status === 'expected') counts[id].passed += 1;
+      else if (test.status === 'flaky') counts[id].flaky += 1;
+      else if (test.status === 'skipped') counts[id].skipped += 1;
     }
   }
   return Object.values(counts);

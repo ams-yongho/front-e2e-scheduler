@@ -130,12 +130,14 @@ assert.strictEqual(result.browsers.length, 3, '3 browsers');
 const chromium = result.browsers.find(b => b.id === 'chromium');
 assert.strictEqual(chromium.name, 'Chromium');
 assert.strictEqual(chromium.icon, 'CR');
-assert.strictEqual(chromium.passed, 2);
+assert.strictEqual(chromium.passed, 1, 'chromium passed = expected only');
 assert.strictEqual(chromium.failed, 0);
+assert.strictEqual(chromium.flaky, 1, 'chromium flaky tracked separately');
 assert.strictEqual(chromium.total, 2);
 const webkit = result.browsers.find(b => b.id === 'webkit');
 assert.strictEqual(webkit.failed, 1, 'webkit had 1 unexpected');
 assert.strictEqual(webkit.passed, 1);
+assert.strictEqual(webkit.flaky, 0);
 
 // === Flaky tests ===
 assert.strictEqual(result.flakyTests.length, 1);
