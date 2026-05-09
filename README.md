@@ -26,15 +26,24 @@ cp .env.example .env
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
 ```
 
-### 2) `projects/ca-admin/config.json` 수정
+### 2) 프로젝트 config 확인
 
-`path` 항목을 로컬 ca-admin 프로젝트의 실제 경로로 수정합니다:
+`projects/*/config.json`의 `path` 항목이 로컬 ca-front 앱의 실제 경로를 가리키는지 확인합니다.
+
+현재 등록된 프로젝트:
+- `ca-admin`
+- `typist`
+- `cv-view`
+- `vis`
+- `pv-view`
+
+예시:
 
 ```json
 {
   "name": "ca-admin",
-  "path": "/Users/yongho/projects/ca-admin",
-  "command": "pnpm test:e2e",
+  "path": "/Users/yonghokim/Documents/GitHub/amass/ca-front/apps/ca-admin",
+  "command": "pnpm playwright test",
   "slack_channel": "#qa-alerts"
 }
 ```
@@ -95,6 +104,10 @@ crontab -l
 
 ```bash
 ./scripts/run-project.sh ca-admin
+./scripts/run-project.sh typist
+./scripts/run-project.sh cv-view
+./scripts/run-project.sh vis
+./scripts/run-project.sh pv-view
 ```
 
 ### 결과 확인
@@ -134,10 +147,10 @@ cp -r projects/ca-admin projects/new-project
 ## 6. 검증 체크리스트
 
 - [ ] `.env` 파일에 `SLACK_WEBHOOK_URL` 설정됨
-- [ ] `projects/ca-admin/config.json`의 `path`가 실제 경로로 설정됨
-- [ ] `./scripts/run-project.sh ca-admin` 실행 시 `results/ca-admin/[오늘날짜].json` 생성됨
+- [ ] `projects/*/config.json`의 `path`가 실제 경로로 설정됨
+- [ ] `./scripts/run-project.sh [프로젝트명]` 실행 시 `results/[프로젝트명]/[오늘날짜].json` 생성됨
 - [ ] `results/manifest.json`이 올바르게 업데이트됨
 - [ ] Slack #qa-alerts 채널에 메시지 수신됨
 - [ ] `docker compose up -d` 실행 후 `http://localhost:8080` 접속 가능
-- [ ] 대시보드에 ca-admin 카드 및 히스토리 표시됨
+- [ ] 대시보드에 등록된 프로젝트 카드 및 히스토리 표시됨
 - [ ] Mac crontab에 등록됨 (`crontab -l`로 확인)

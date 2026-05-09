@@ -1,0 +1,6 @@
+{
+  "name": "pv-view",
+  "path": "/Users/yonghokim/Documents/GitHub/amass/ca-front/apps/pv-view",
+  "command": "pnpm playwright test",
+  "slack_channel": "#qa-alerts"
+}
