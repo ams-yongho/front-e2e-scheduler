@@ -60,8 +60,8 @@ export default function App() {
   const failedCount = projects.filter(p => p.latest && p.latest.failed > 0).length;
   const flakyTotal = projects.reduce((sum, p) => sum + (p.latest?.flaky || 0), 0);
   const totalTests = projects.reduce((sum, p) => sum + (p.latest?.total || 0), 0);
-  const failedTests = projects.reduce((sum, p) => sum + (p.latest?.failed || 0), 0);
-  const passRate = totalTests > 0 ? Math.round(((totalTests - failedTests) / totalTests) * 100) : 0;
+  const passedTests = projects.reduce((sum, p) => sum + (p.latest?.passed || 0), 0);
+  const passRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
 
   return (
     <div style={{ minHeight: '100vh', background: '#010102' }}>
@@ -75,7 +75,7 @@ export default function App() {
           flakyTotal={flakyTotal}
           passRate={passRate}
           totalTests={totalTests}
-          failedTests={failedTests}
+          passedTests={passedTests}
         />
       )}
 
@@ -189,7 +189,7 @@ function SummaryBar({
   flakyTotal,
   passRate,
   totalTests,
-  failedTests,
+  passedTests,
 }: {
   projectCount: number;
   passedCount: number;
@@ -197,7 +197,7 @@ function SummaryBar({
   flakyTotal: number;
   passRate: number;
   totalTests: number;
-  failedTests: number;
+  passedTests: number;
 }) {
   return (
     <div style={{ borderBottom: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.2)' }}>
@@ -235,7 +235,7 @@ function SummaryBar({
         <Stat>
           전체 통과율
           <span style={statValueStyle}>{passRate}%</span>
-          <span style={statValueStyle}>{totalTests - failedTests}/{totalTests}</span>
+          <span style={statValueStyle}>{passedTests}/{totalTests}</span>
         </Stat>
       </div>
     </div>

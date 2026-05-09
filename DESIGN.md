@@ -30,7 +30,8 @@ Adapted from Linear's design system (https://github.com/VoltAgent/awesome-design
 - Default: `rgba(255,255,255,0.10)`
 
 ## Typography
-- Font: Geist Variable (installed via @fontsource-variable/geist)
+- Font: Pretendard Variable (installed via `pretendard` package)
+- Mono: JetBrains Mono Variable (installed via `@fontsource-variable/jetbrains-mono`)
 - Heading weight: 500–600
 - Body: 14px/1.5, weight 400
 - Mono: ui-monospace (error messages)
