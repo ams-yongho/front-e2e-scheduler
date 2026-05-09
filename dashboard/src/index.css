@@ -1,7 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "pretendard/dist/web/variable/pretendardvariable.css";
+@import "@fontsource-variable/jetbrains-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -52,7 +53,14 @@
   --border-subtle: rgba(255, 255, 255, 0.06);
   --border-default: rgba(255, 255, 255, 0.10);
 
-  font: 14px/1.5 'Geist Variable', system-ui, sans-serif;
+  /* Warning (flaky) */
+  --warning: #f5a623;
+  --warning-muted: rgba(245, 166, 35, 0.14);
+
+  /* Accent muted (info) */
+  --accent-muted: rgba(94, 106, 210, 0.15);
+
+  font: 14px/1.5 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   letter-spacing: 0.01em;
   color: var(--text-primary);
   background: #010102;
@@ -72,8 +80,9 @@ body {
 }
 
 @theme inline {
-  --font-sans: 'Geist Variable', system-ui, sans-serif;
-  --font-heading: 'Geist Variable', system-ui, sans-serif;
+  --font-sans: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-heading: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
