@@ -122,7 +122,7 @@ function parsePlaywrightJSON(raw, projectName, date) {
     project: projectName,
     date,
     status: unexpected > 0 ? 'failed' : 'passed',
-    total: expected + unexpected + skipped,
+    total: expected + unexpected + flaky + skipped,
     passed: expected,
     failed: unexpected,
     flaky,
