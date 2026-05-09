@@ -60,7 +60,7 @@ function FailureItem({ failure: f }: { failure: TestFailure }) {
         </div>
       </div>
 
-      <StepTrail steps={f.steps ?? []} failedStepIdx={f.failedStepIdx ?? -1} />
+      <StepTrail steps={f.steps} failedStepIdx={f.failedStepIdx} />
 
       <div
         style={{
@@ -95,7 +95,7 @@ function FailureItem({ failure: f }: { failure: TestFailure }) {
         </pre>
       </div>
 
-      {(f.attachments?.length ?? 0) > 0 && (
+      {f.attachments.length > 0 && (
         <div
           style={{
             marginTop: 10,
@@ -105,7 +105,7 @@ function FailureItem({ failure: f }: { failure: TestFailure }) {
             flexWrap: 'wrap',
           }}
         >
-          {f.attachments!.map((a, i) => (
+          {f.attachments.map((a, i) => (
             <span
               key={i}
               style={{
@@ -157,7 +157,7 @@ function ScreenshotPlaceholder() {
           letterSpacing: '0.02em',
         }}
       >
-        📷 preview
+        📷 screenshot
       </span>
     </div>
   );

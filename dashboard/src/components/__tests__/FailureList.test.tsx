@@ -35,8 +35,9 @@ it('renders step trail with failed step marker', () => {
 
 it('renders attachment chips for each attachment', () => {
   render(<FailureList failures={failures} />);
-  expect(screen.getByText(/screenshot/)).toBeInTheDocument();
-  expect(screen.getByText(/trace/)).toBeInTheDocument();
+  // Placeholder label also reads "📷 screenshot", so two elements share that text.
+  expect(screen.getAllByText(/^📷 screenshot$/)).toHaveLength(2);
+  expect(screen.getByText(/^🔍 trace$/)).toBeInTheDocument();
 });
 
 it('renders nothing when failures is empty', () => {

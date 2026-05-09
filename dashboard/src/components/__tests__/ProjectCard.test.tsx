@@ -6,7 +6,10 @@ const failedResult: TestResult = {
   project: 'ca-admin', date: '2026-05-08', status: 'failed',
   total: 50, passed: 47, failed: 3, skipped: 0, duration: '3분 42초',
   failures: [
-    { test: '결제 완료 플로우', file: 'checkout.spec.ts', line: 84, error: 'err' },
+    {
+      test: '결제 완료 플로우', file: 'checkout.spec.ts', line: 84, error: 'err',
+      browser: 'chromium', steps: [], failedStepIdx: -1, attachments: [],
+    },
   ],
 };
 
