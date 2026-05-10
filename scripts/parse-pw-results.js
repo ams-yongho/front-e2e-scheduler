@@ -139,7 +139,12 @@ function parsePlaywrightJSON(raw, projectName, date) {
 
 if (require.main === module) {
   const [,, pwOutputFile, projectName, date] = process.argv;
-  const raw = JSON.parse(require('fs').readFileSync(pwOutputFile, 'utf8'));
+  const text = require('fs').readFileSync(pwOutputFile, 'utf8');
+  if (text.trim() === '') {
+    console.error(`[parse-pw-results] Empty Playwright output for ${projectName} (${pwOutputFile}). Likely cause: e2e command failed before producing JSON.`);
+    process.exit(2);
+  }
+  const raw = JSON.parse(text);
   console.log(JSON.stringify(parsePlaywrightJSON(raw, projectName, date), null, 2));
 }
 
