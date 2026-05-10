@@ -1,8 +1,8 @@
 import type { FlakyTest } from '../types';
 
-interface Props {
+type Props = {
   tests: FlakyTest[];
-}
+};
 
 export function FlakyList({ tests }: Props) {
   if (tests.length === 0) return null;

@@ -1,8 +1,8 @@
 import type { TestResult } from '../types';
 
-interface Props {
+type Props = {
   results: TestResult[];
-}
+};
 
 export function HistoryTable({ results }: Props) {
   if (results.length === 0) {

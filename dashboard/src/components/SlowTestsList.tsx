@@ -1,8 +1,8 @@
 import type { SlowTest } from '../types';
 
-interface Props {
+type Props = {
   tests: SlowTest[];
-}
+};
 
 export function SlowTestsList({ tests }: Props) {
   if (tests.length === 0) return null;
