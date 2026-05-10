@@ -1,8 +1,8 @@
 import type { BrowserStat } from '../types';
 
-interface Props {
+type Props = {
   browsers: BrowserStat[];
-}
+};
 
 export function BrowserMatrix({ browsers }: Props) {
   if (browsers.length === 0) return null;

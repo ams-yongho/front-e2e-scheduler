@@ -13,12 +13,12 @@ import { FlakyList } from './FlakyList';
 import { SlowTestsList } from './SlowTestsList';
 import { HistoryTable } from './HistoryTable';
 
-interface Props {
+type Props = {
   projectName: string;
   latest: TestResult | null;
   history: TestResult[];
   trend: number[];
-}
+};
 
 export function ProjectCard({ projectName, latest, history, trend }: Props) {
   const passRate = latest && latest.total > 0 ? (latest.passed / latest.total) * 100 : 0;

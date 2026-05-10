@@ -4,12 +4,12 @@ import { ProjectCard } from './components/ProjectCard';
 import { computeTrend } from './lib/trend';
 import type { TestResult } from './types';
 
-interface ProjectData {
+type ProjectData = {
   name: string;
   latest: TestResult | null;
   history: TestResult[];
   trend: number[];
-}
+};
 
 export default function App() {
   const [projects, setProjects] = useState<ProjectData[]>([]);

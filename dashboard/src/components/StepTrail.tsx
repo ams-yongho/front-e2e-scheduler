@@ -1,7 +1,7 @@
-interface Props {
+type Props = {
   steps: string[];
   failedStepIdx: number;
-}
+};
 
 export function StepTrail({ steps, failedStepIdx }: Props) {
   if (steps.length === 0) return null;

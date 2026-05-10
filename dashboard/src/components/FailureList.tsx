@@ -1,9 +1,9 @@
 import type { TestFailure } from '../types';
 import { StepTrail } from './StepTrail';
 
-interface Props {
+type Props = {
   failures: TestFailure[];
-}
+};
 
 export function FailureList({ failures }: Props) {
   if (failures.length === 0) return null;

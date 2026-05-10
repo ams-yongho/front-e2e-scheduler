@@ -1,9 +1,9 @@
-interface Props {
+type Props = {
   data: number[];
   accent: string;
   width?: number;
   height?: number;
-}
+};
 
 export function Sparkline({ data, accent, width = 130, height = 24 }: Props) {
   if (data.length === 0) {
