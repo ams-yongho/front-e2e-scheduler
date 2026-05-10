@@ -139,7 +139,14 @@ function parsePlaywrightJSON(raw, projectName, date) {
 
 if (require.main === module) {
   const [,, pwOutputFile, projectName, date] = process.argv;
-  const raw = JSON.parse(require('fs').readFileSync(pwOutputFile, 'utf8'));
+  const content = require('fs').readFileSync(pwOutputFile, 'utf8');
+  if (!content.trim()) {
+    const stderrLog = pwOutputFile.replace(/\.json$/, '.stderr.log');
+    console.error(`[parse-pw-results] ${pwOutputFile} is empty — Playwright produced no JSON output.`);
+    console.error(`[parse-pw-results] Check stderr log for the underlying error: ${stderrLog}`);
+    process.exit(1);
+  }
+  const raw = JSON.parse(content);
   console.log(JSON.stringify(parsePlaywrightJSON(raw, projectName, date), null, 2));
 }
 
