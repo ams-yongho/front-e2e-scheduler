@@ -19,6 +19,13 @@ PW_OUTPUT="/tmp/pw-${PROJECT_NAME}-${DATE}.json"
 
 mkdir -p "$RESULTS_DIR"
 
+# Preflight: Playwright이 사용 가능하지 않으면 의존성 자동 설치
+PROJECT_PATH=$(node -p "require('$PROJECT_DIR/config.json').path")
+if ! (cd "$PROJECT_PATH" && pnpm exec playwright --version >/dev/null 2>&1); then
+  echo "[$(date -u +%H:%M:%S)] Playwright not available in $PROJECT_NAME, running pnpm install..."
+  (cd "$PROJECT_PATH" && pnpm install)
+fi
+
 echo "[$(date -u +%H:%M:%S)] Starting $PROJECT_NAME E2E tests..."
 
 bash "$PROJECT_DIR/run.sh" "$PW_OUTPUT"

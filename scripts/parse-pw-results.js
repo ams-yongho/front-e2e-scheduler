@@ -141,7 +141,9 @@ if (require.main === module) {
   const [,, pwOutputFile, projectName, date] = process.argv;
   const text = require('fs').readFileSync(pwOutputFile, 'utf8');
   if (text.trim() === '') {
+    const stderrLog = pwOutputFile.replace(/\.json$/, '.stderr.log');
     console.error(`[parse-pw-results] Empty Playwright output for ${projectName} (${pwOutputFile}). Likely cause: e2e command failed before producing JSON.`);
+    console.error(`[parse-pw-results] Check stderr log for the underlying error: ${stderrLog}`);
     process.exit(2);
   }
   const raw = JSON.parse(text);

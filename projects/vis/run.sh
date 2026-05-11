@@ -9,4 +9,4 @@ PROJECT_PATH=$(node -p "require('${CONFIG_DIR}/config.json').path")
 
 cd "$PROJECT_PATH"
 # 테스트 실패 시에도 JSON 출력은 생성되므로 || true 사용
-pnpm playwright test --reporter=json > "$OUTPUT_FILE" 2>/dev/null || true
+pnpm playwright test --reporter=json > "$OUTPUT_FILE" 2> "${OUTPUT_FILE%.json}.stderr.log" || true
