@@ -90,7 +90,11 @@ function readResultsByProject(projects, resultsDir, date) {
   for (const project of projects) {
     const resultFile = path.join(resultsDir, project, `${date}.json`);
     if (fs.existsSync(resultFile)) {
-      resultsByProject.set(project, readJson(resultFile));
+      try {
+        resultsByProject.set(project, readJson(resultFile));
+      } catch (err) {
+        console.warn(`[WARN] Skipping unreadable result for ${project}: ${resultFile} (${err.message})`);
+      }
     }
   }
   return resultsByProject;

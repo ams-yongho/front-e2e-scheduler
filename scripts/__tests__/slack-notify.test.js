@@ -1,7 +1,14 @@
 'use strict';
 
 const assert = require('assert');
-const { buildSummaryMessage, validateDashboardUrl } = require('../slack-notify');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const {
+  buildSummaryMessage,
+  readResultsByProject,
+  validateDashboardUrl,
+} = require('../slack-notify');
 
 const projects = ['ca-admin', 'typist', 'cv-view'];
 const resultsByProject = new Map([
@@ -59,5 +66,24 @@ assert.throws(
 assert.ok(!message.includes('실패 목록:'), 'summary must not include failure detail heading');
 assert.ok(!message.includes('checkout.spec.ts'), 'summary must not include failure file detail');
 assert.ok(!message.includes('결제 완료 플로우'), 'summary must not include failure test detail');
+
+const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'slack-notify-'));
+const resultsDir = path.join(tempDir, 'results');
+fs.mkdirSync(path.join(resultsDir, 'ca-admin'), { recursive: true });
+fs.mkdirSync(path.join(resultsDir, 'scm-front'), { recursive: true });
+fs.writeFileSync(path.join(resultsDir, 'ca-admin', '2026-05-11.json'), JSON.stringify({
+  project: 'ca-admin',
+  date: '2026-05-11',
+  status: 'passed',
+  total: 1,
+  passed: 1,
+  failed: 0,
+  duration: '1초',
+}));
+fs.writeFileSync(path.join(resultsDir, 'scm-front', '2026-05-11.json'), '');
+
+const readableResults = readResultsByProject(['ca-admin', 'scm-front'], resultsDir, '2026-05-11');
+assert.ok(readableResults.has('ca-admin'), 'valid result should be included');
+assert.ok(!readableResults.has('scm-front'), 'empty result should be skipped');
 
 console.log('✅ All slack-notify tests passed');
