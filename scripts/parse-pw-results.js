@@ -137,6 +137,32 @@ function parsePlaywrightJSON(raw, projectName, date) {
   };
 }
 
+function parsePlaywrightOutputText(text, projectName = 'unknown') {
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    const starts = [];
+    const lineStartJson = /^[\t ]*\{/gm;
+    let match;
+    while ((match = lineStartJson.exec(text)) !== null) {
+      starts.push(match.index + match[0].lastIndexOf('{'));
+    }
+
+    for (const jsonStart of starts) {
+      const jsonEnd = text.lastIndexOf('}');
+      if (jsonEnd < jsonStart) continue;
+      try {
+        console.error(`[parse-pw-results] Ignoring non-JSON stdout around Playwright JSON for ${projectName}`);
+        return JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+      } catch {
+        // Try the next line-start JSON candidate.
+      }
+    }
+
+    throw err;
+  }
+}
+
 if (require.main === module) {
   const [,, pwOutputFile, projectName, date] = process.argv;
   const text = require('fs').readFileSync(pwOutputFile, 'utf8');
@@ -146,8 +172,8 @@ if (require.main === module) {
     console.error(`[parse-pw-results] Check stderr log for the underlying error: ${stderrLog}`);
     process.exit(2);
   }
-  const raw = JSON.parse(text);
+  const raw = parsePlaywrightOutputText(text, projectName);
   console.log(JSON.stringify(parsePlaywrightJSON(raw, projectName, date), null, 2));
 }
 
-module.exports = { parsePlaywrightJSON };
+module.exports = { parsePlaywrightJSON, parsePlaywrightOutputText };

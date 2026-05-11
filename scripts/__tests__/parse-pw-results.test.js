@@ -1,6 +1,6 @@
 'use strict';
 const assert = require('assert');
-const { parsePlaywrightJSON } = require('../parse-pw-results');
+const { parsePlaywrightJSON, parsePlaywrightOutputText } = require('../parse-pw-results');
 
 // 기본 케이스: 단일 브라우저, 일부 실패 + flaky + steps
 const mockPWOutput = {
@@ -167,5 +167,25 @@ assert.strictEqual(passed.failures.length, 0);
 assert.strictEqual(passed.flakyTests.length, 0);
 assert.strictEqual(passed.slowTests.length, 0);
 assert.strictEqual(passed.browsers.length, 1);
+
+const parsedWithLeadingLog = parsePlaywrightOutputText(
+  `◇ injected env (0) from .env.test.local\n${JSON.stringify({
+    config: { projects: [{ name: 'chromium' }] },
+    suites: [],
+    stats: { duration: 1000, expected: 1, unexpected: 0, flaky: 0, skipped: 0 },
+  })}`,
+  'scm-front'
+);
+assert.strictEqual(parsedWithLeadingLog.stats.expected, 1, 'leading stdout logs before JSON should be ignored');
+
+const parsedWithBracedLeadingLog = parsePlaywrightOutputText(
+  `◇ injected env (0) from .env.test.local // tip: custom filepath { path: '/custom/path/.env' }\n${JSON.stringify({
+    config: { projects: [{ name: 'chromium' }] },
+    suites: [],
+    stats: { duration: 1000, expected: 2, unexpected: 0, flaky: 0, skipped: 0 },
+  })}`,
+  'scm-front'
+);
+assert.strictEqual(parsedWithBracedLeadingLog.stats.expected, 2, 'braces in leading logs should be ignored');
 
 console.log('✅ All parse-pw-results tests passed');
