@@ -5,7 +5,7 @@
 Mac 호스트에서 cron을 통해 Playwright E2E 테스트를 매일 자동 실행하고, 결과를 JSON으로 저장하며, Slack으로 알림을 발송하는 스케줄러입니다. Docker nginx를 통해 팀 대시보드를 제공합니다.
 
 **동작 흐름:**
-- 매일 10:00 — cron → `scripts/run-all.sh` → 프로젝트별 결과 `results/[project]/YYYY-MM-DD.json` 저장 → `results/manifest.json` 업데이트 → Slack 알림
+- 매일 10:00 — cron → `scripts/run-all.sh` → 프로젝트별 결과 `results/[project]/YYYY-MM-DD.json` 저장 → `results/manifest.json` 업데이트 → Slack 전체 요약 알림 1회 전송
 - Docker: nginx (포트 8080) → `dashboard/dist/` 빌드 결과 + `results/` 볼륨 마운트
 
 ---
@@ -20,10 +20,12 @@ Mac 호스트에서 cron을 통해 Playwright E2E 테스트를 매일 자동 실
 cp .env.example .env
 ```
 
-`.env` 파일을 열어 `SLACK_WEBHOOK_URL`을 실제 값으로 교체합니다:
+`.env` 파일을 열어 `SLACK_WEBHOOK_URL`과 외부에서 접근 가능한 `DASHBOARD_URL`을 실제 값으로 교체합니다.
+`DASHBOARD_URL`은 Slack 메시지를 받는 사람이 접근할 수 있는 공개 도메인, 사내 DNS, VPN 주소, 또는 터널 URL이어야 합니다. `localhost`는 알림 전송 시 거부됩니다.
 
 ```
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
+DASHBOARD_URL=http://172.17.2.240:8080
 ```
 
 ### 2) 프로젝트 config 확인
@@ -66,6 +68,8 @@ docker compose up -d
 
 브라우저에서 `http://localhost:8080` 접속
 
+팀원이 Slack 링크로 접근하려면 `DASHBOARD_URL`이 이 로컬 주소가 아니라 외부 접근 가능한 주소를 가리켜야 합니다. 필요하면 사내 프록시, VPN에서 접근 가능한 Mac 주소, 또는 터널링 도구를 통해 `http://localhost:8080`을 외부 URL에 연결합니다.
+
 ---
 
 ## 3. crontab 등록
@@ -102,6 +106,8 @@ crontab -l
 
 ### 단일 프로젝트 실행
 
+단일 프로젝트 실행은 결과 JSON만 저장하며 Slack 알림은 보내지 않습니다.
+
 ```bash
 ./scripts/run-project.sh ca-admin
 ./scripts/run-project.sh typist
@@ -123,6 +129,8 @@ cat results/manifest.json
 ```
 
 ### 전체 실행
+
+전체 실행이 완료되면 모든 프로젝트 결과를 모아 Slack 요약 알림을 한 번 보냅니다.
 
 ```bash
 ./scripts/run-all.sh
@@ -147,10 +155,11 @@ cp -r projects/ca-admin projects/new-project
 ## 6. 검증 체크리스트
 
 - [ ] `.env` 파일에 `SLACK_WEBHOOK_URL` 설정됨
+- [ ] `.env` 파일에 외부 접근 가능한 `DASHBOARD_URL` 설정됨 (`localhost` 사용 불가)
 - [ ] `projects/*/config.json`의 `path`가 실제 경로로 설정됨
 - [ ] `./scripts/run-project.sh [프로젝트명]` 실행 시 `results/[프로젝트명]/[오늘날짜].json` 생성됨
 - [ ] `results/manifest.json`이 올바르게 업데이트됨
-- [ ] Slack #qa-alerts 채널에 메시지 수신됨
+- [ ] `./scripts/run-all.sh` 완료 후 Slack #qa-alerts 채널에 전체 요약 메시지 1건 수신됨
 - [ ] `docker compose up -d` 실행 후 `http://localhost:8080` 접속 가능
 - [ ] 대시보드에 등록된 프로젝트 카드 및 히스토리 표시됨
 - [ ] Mac crontab에 등록됨 (`crontab -l`로 확인)

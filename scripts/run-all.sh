@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 PROJECTS_DIR="$REPO_ROOT/projects"
 MANIFEST_FILE="$REPO_ROOT/results/manifest.json"
+DATE="$(date +%Y-%m-%d)"
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] run-all started"
 
@@ -35,5 +36,13 @@ fs.mkdirSync(path.dirname('$MANIFEST_FILE'), { recursive: true });
 fs.writeFileSync('$MANIFEST_FILE', JSON.stringify({ projects, lastUpdated: new Date().toISOString() }, null, 2));
 console.log('Manifest updated:', projects);
 "
+
+# .env 로드 (있는 경우)
+if [[ -f "$REPO_ROOT/.env" ]]; then
+  set -a; source "$REPO_ROOT/.env"; set +a
+fi
+
+node "$SCRIPT_DIR/slack-notify.js" --summary "$DATE" "$PROJECTS_DIR" "$REPO_ROOT/results"
+echo "[$(date -u +%H:%M:%S)] Slack summary notification sent"
 
 echo "[$(date -u +%Y-%m-%dT%H:%M:%S)] run-all complete"
