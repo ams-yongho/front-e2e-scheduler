@@ -1,0 +1,6 @@
+{
+  "name": "partsfit-mall",
+  "path": "/Users/yonghokim/Documents/GitHub/amass/partsfit-mall-front/apps/mall",
+  "command": "PLAYWRIGHT_TARGET=staging pnpm playwright test",
+  "slack_channel": "#qa-alerts"
+}
