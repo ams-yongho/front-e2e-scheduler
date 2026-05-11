@@ -32,11 +32,3 @@ bash "$PROJECT_DIR/run.sh" "$PW_OUTPUT"
 
 node "$SCRIPT_DIR/parse-pw-results.js" "$PW_OUTPUT" "$PROJECT_NAME" "$DATE" > "$RESULTS_FILE"
 echo "[$(date -u +%H:%M:%S)] Results saved: $RESULTS_FILE"
-
-# .env 로드 (있는 경우)
-if [[ -f "$REPO_ROOT/.env" ]]; then
-  set -a; source "$REPO_ROOT/.env"; set +a
-fi
-
-node "$SCRIPT_DIR/slack-notify.js" "$RESULTS_FILE"
-echo "[$(date -u +%H:%M:%S)] Slack notification sent for $PROJECT_NAME"
