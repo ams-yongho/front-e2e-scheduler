@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { fetchManifest, fetchResult, last30Days } from './api';
+import { ProjectGrid } from './components/ProjectGrid';
 import { ProjectCard } from './components/ProjectCard';
 import { computeTrend } from './lib/trend';
 import type { TestResult } from './types';
 
-type ProjectData = {
+export type ProjectData = {
   name: string;
   latest: TestResult | null;
   history: TestResult[];
@@ -13,6 +14,7 @@ type ProjectData = {
 
 export default function App() {
   const [projects, setProjects] = useState<ProjectData[]>([]);
+  const [selectedProjectName, setSelectedProjectName] = useState(() => getSelectedProjectFromUrl());
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -48,6 +50,15 @@ export default function App() {
     load();
   }, []);
 
+  useEffect(() => {
+    function handlePopState() {
+      setSelectedProjectName(getSelectedProjectFromUrl());
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>
@@ -62,6 +73,23 @@ export default function App() {
   const totalTests = projects.reduce((sum, p) => sum + (p.latest?.total || 0), 0);
   const passedTests = projects.reduce((sum, p) => sum + (p.latest?.passed || 0), 0);
   const passRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
+  const selectedProject = selectedProjectName
+    ? projects.find(project => project.name === selectedProjectName)
+    : null;
+
+  function selectProject(projectName: string) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('project', projectName);
+    const nextUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.pushState(null, '', nextUrl);
+    setSelectedProjectName(projectName);
+  }
+
+  function showProjectGrid() {
+    const nextUrl = window.location.pathname;
+    window.history.pushState(null, '', nextUrl);
+    setSelectedProjectName(null);
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#010102' }}>
@@ -107,18 +135,66 @@ export default function App() {
           <p style={{ padding: '48px 0', textAlign: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
             등록된 프로젝트가 없습니다.
           </p>
-        ) : (
-          projects.map(p => (
+        ) : selectedProject ? (
+          <>
+            <DetailNav projectName={selectedProject.name} onBack={showProjectGrid} />
             <ProjectCard
-              key={p.name}
-              projectName={p.name}
-              latest={p.latest}
-              history={p.history}
-              trend={p.trend}
+              projectName={selectedProject.name}
+              latest={selectedProject.latest}
+              history={selectedProject.history}
+              trend={selectedProject.trend}
             />
-          ))
+          </>
+        ) : (
+          <ProjectGrid projects={projects} onSelect={selectProject} />
         )}
       </main>
+    </div>
+  );
+}
+
+function getSelectedProjectFromUrl(): string | null {
+  return new URLSearchParams(window.location.search).get('project');
+}
+
+function DetailNav({ projectName, onBack }: { projectName: string; onBack: () => void }) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 14,
+        padding: '2px 0 8px',
+      }}
+    >
+      <button
+        type="button"
+        onClick={onBack}
+        style={{
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 6,
+          background: 'var(--surface-1)',
+          color: 'var(--accent-hover)',
+          cursor: 'pointer',
+          font: 'inherit',
+          fontSize: 12,
+          fontWeight: 600,
+          padding: '7px 10px',
+        }}
+      >
+        프로젝트 목록
+      </button>
+      <div
+        style={{
+          color: 'var(--text-muted)',
+          fontSize: 12,
+          fontFamily: 'var(--font-mono)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {projectName}
+      </div>
     </div>
   );
 }
@@ -146,7 +222,7 @@ function Header({ lastUpdated }: { lastUpdated: string }) {
           justifyContent: 'space-between',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, letterSpacing: '-0.012em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, fontWeight: 600, letterSpacing: '-0.012em', whiteSpace: 'nowrap' }}>
           <div
             style={{
               width: 22,
@@ -167,7 +243,7 @@ function Header({ lastUpdated }: { lastUpdated: string }) {
           <span>E2E 테스트 대시보드</span>
         </div>
         {lastUpdated && (
-          <div style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
+          <div className="dashboard-header-meta" style={{ fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>
             마지막 실행 ·{' '}
             {new Date(lastUpdated).toLocaleString('ko-KR', {
               month: 'short',
@@ -211,6 +287,9 @@ function SummaryBar({
           gap: 22,
           fontSize: 12,
           color: 'var(--text-muted)',
+          overflowX: 'auto',
+          whiteSpace: 'nowrap',
+          scrollbarWidth: 'none',
         }}
       >
         <Stat>
@@ -252,7 +331,7 @@ const statValueStyle: React.CSSProperties = {
 };
 
 function Stat({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>{children}</div>;
+  return <div style={{ display: 'flex', alignItems: 'center', gap: 7, flex: '0 0 auto' }}>{children}</div>;
 }
 
 function Dot({ color }: { color: string }) {
@@ -270,5 +349,5 @@ function Dot({ color }: { color: string }) {
 }
 
 function Divider() {
-  return <span style={{ width: 1, height: 12, background: 'var(--border-subtle)' }} />;
+  return <span style={{ width: 1, height: 12, background: 'var(--border-subtle)', flex: '0 0 auto' }} />;
 }
