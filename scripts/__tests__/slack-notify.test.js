@@ -2,11 +2,14 @@
 
 const assert = require('assert');
 const fs = require('fs');
+const https = require('https');
 const os = require('os');
 const path = require('path');
+const { EventEmitter } = require('events');
 const {
   buildSummaryMessage,
   readResultsByProject,
+  sendSlackMessage,
   validateDashboardUrl,
 } = require('../slack-notify');
 
@@ -55,6 +58,34 @@ function assertProjectRow(payload, projectLabel, resultText) {
     });
   });
   assert.ok(found, `missing project row: ${projectLabel} / ${resultText}`);
+}
+
+async function captureSlackBody(message) {
+  const originalRequest = https.request;
+  let capturedBody = '';
+  let capturedOptions;
+
+  https.request = (options, callback) => {
+    capturedOptions = options;
+    const req = new EventEmitter();
+    req.write = chunk => {
+      capturedBody += chunk;
+    };
+    req.end = () => {
+      const res = new EventEmitter();
+      res.statusCode = 200;
+      callback(res);
+    };
+    return req;
+  };
+
+  try {
+    await sendSlackMessage('https://hooks.slack.com/services/T/B/C?x=1', message);
+  } finally {
+    https.request = originalRequest;
+  }
+
+  return { capturedOptions, body: JSON.parse(capturedBody) };
 }
 
 const payload = buildSummaryMessage({
@@ -144,4 +175,19 @@ const readableResults = readResultsByProject(['ca-admin', 'scm-front'], resultsD
 assert.ok(readableResults.has('ca-admin'), 'valid result should be included');
 assert.ok(!readableResults.has('scm-front'), 'empty result should be skipped');
 
-console.log('✅ All slack-notify tests passed');
+(async () => {
+  const plainMessage = await captureSlackBody('plain text');
+  assert.deepStrictEqual(plainMessage.body, { text: 'plain text' });
+  assert.strictEqual(plainMessage.capturedOptions.hostname, 'hooks.slack.com');
+  assert.strictEqual(plainMessage.capturedOptions.path, '/services/T/B/C?x=1');
+  assert.strictEqual(plainMessage.capturedOptions.method, 'POST');
+
+  const blockPayload = { text: 'fallback', blocks: [{ type: 'divider' }] };
+  const blockMessage = await captureSlackBody(blockPayload);
+  assert.deepStrictEqual(blockMessage.body, blockPayload);
+
+  console.log('✅ All slack-notify tests passed');
+})().catch(err => {
+  console.error(err);
+  process.exit(1);
+});
