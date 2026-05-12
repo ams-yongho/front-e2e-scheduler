@@ -1,6 +1,6 @@
 {
   "name": "cv-view",
   "path": "/Users/yonghokim/Documents/GitHub/amass/ca-front/apps/cv-view",
-  "command": "pnpm playwright test",
+  "command": "pnpm playwright test --reporter=json",
   "slack_channel": "#qa-alerts"
 }

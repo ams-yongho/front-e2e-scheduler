@@ -1,6 +1,6 @@
 {
   "name": "ca-admin",
   "path": "/Users/yonghokim/Documents/GitHub/amass/ca-front/apps/ca-admin",
-  "command": "pnpm playwright test",
+  "command": "pnpm playwright test --reporter=json",
   "slack_channel": "#qa-alerts"
 }
