@@ -68,16 +68,25 @@ e2e-scheduler/
 
 ## Slack 알림 형식
 
-```
-[E2E 테스트 전체 결과] 2026-05-11
-❌ 4/5 프로젝트 통과 | 총 247/250 통과 | 실패 3건
+전체 요약 알림은 Slack Incoming Webhook에 `{ text, blocks }` payload로 전송합니다.
 
-- ✅ ca-admin: 50/50 통과 | 실패 0건 | 3분 42초
-- ❌ typist: 47/50 통과 | 실패 3건 | 2분 10초
-- ✅ cv-view: 50/50 통과 | 실패 0건 | 1분 58초
+- `text`: Slack 알림 미리보기와 접근성 fallback
+- `blocks`: Slack 화면에 표시되는 Block Kit 카드형 요약
 
-대시보드: http://172.17.2.240:8080
-```
+Block Kit 구성:
+
+1. Header: `E2E 테스트 전체 결과 · YYYY-MM-DD`
+2. Status section: `✅ 전체 통과` 또는 `❌ 일부 실패`
+3. Summary fields:
+   - `프로젝트 통과`: `5 / 8`
+   - `테스트 통과`: `107 / 412`
+   - `실패`: `137건`
+   - `총 소요시간`: `2분 50초`
+4. Project result fields:
+   - `✅ ca-admin` / `19/21 통과 · 실패 0건 · 29초`
+   - `❌ partsfit-mall` / `69/160 통과 · 실패 18건 · 19초`
+   - 결과 파일이 없으면 `❌ project-name` / `결과 없음`
+5. Actions: `대시보드 열기` 버튼
 
 - `run-all.sh`에서 모든 프로젝트 실행이 끝난 뒤 Slack 요약을 한 번만 전송
 - 단일 프로젝트 실행(`run-project.sh`)은 Slack 알림 없이 결과 JSON만 저장
