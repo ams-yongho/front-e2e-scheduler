@@ -1,0 +1,6 @@
+{
+  "name": "fp-part-quote",
+  "path": "/Users/yonghokim/Documents/GitHub/amass/fp-front/packages/fp-part-quote",
+  "command": "pnpm playwright test",
+  "slack_channel": "#qa-alerts"
+}
