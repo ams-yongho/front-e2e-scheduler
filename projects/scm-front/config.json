@@ -1,6 +1,6 @@
 {
   "name": "scm-front",
   "path": "/Users/yonghokim/Documents/GitHub/amass/scm-front/apps/scm",
-  "command": "pnpm playwright test",
+  "command": "pnpm playwright test --reporter=json",
   "slack_channel": "#qa-alerts"
 }

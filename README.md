@@ -45,10 +45,12 @@ DASHBOARD_URL=http://172.17.2.240:8080
 {
   "name": "ca-admin",
   "path": "/Users/yonghokim/Documents/GitHub/amass/ca-front/apps/ca-admin",
-  "command": "pnpm playwright test",
+  "command": "pnpm playwright test --reporter=json",
   "slack_channel": "#qa-alerts"
 }
 ```
+
+`scripts/run-project.sh`는 이 `command`를 그대로 실행합니다. 대시보드 결과 JSON 생성을 위해 Playwright 명령에는 `--reporter=json`을 포함해야 합니다.
 
 ### 3) 대시보드 빌드
 
@@ -142,12 +144,12 @@ cat results/manifest.json
 
 1. `projects/ca-admin/` 구조를 복사하여 `projects/[프로젝트명]/` 디렉토리를 생성합니다.
 2. `config.json`에 `name`, `path`, `command`, `slack_channel`을 설정합니다.
-3. `run.sh`를 필요에 맞게 수정합니다.
+3. `command`에 실제 팀에서 검증하는 E2E 실행 명령을 적고, Playwright JSON reporter 옵션을 포함합니다.
 4. 다음 실행 시 자동으로 포함됩니다.
 
 ```bash
 cp -r projects/ca-admin projects/new-project
-# config.json 및 run.sh 수정
+# config.json 수정
 ```
 
 ---
@@ -157,6 +159,7 @@ cp -r projects/ca-admin projects/new-project
 - [ ] `.env` 파일에 `SLACK_WEBHOOK_URL` 설정됨
 - [ ] `.env` 파일에 외부 접근 가능한 `DASHBOARD_URL` 설정됨 (`localhost` 사용 불가)
 - [ ] `projects/*/config.json`의 `path`가 실제 경로로 설정됨
+- [ ] `projects/*/config.json`의 `command`가 팀에서 수동 검증하는 E2E 명령과 일치하고 `--reporter=json`을 포함함
 - [ ] `./scripts/run-project.sh [프로젝트명]` 실행 시 `results/[프로젝트명]/[오늘날짜].json` 생성됨
 - [ ] `results/manifest.json`이 올바르게 업데이트됨
 - [ ] `./scripts/run-all.sh` 완료 후 Slack #qa-alerts 채널에 전체 요약 메시지 1건 수신됨

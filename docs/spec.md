@@ -13,11 +13,9 @@ e2e-scheduler/
 ├── .env.example
 ├── projects/
 │   ├── ca-admin/
-│   │   ├── config.json       ← 프로젝트별 설정
-│   │   └── run.sh            ← 실행 명령어
+│   │   └── config.json       ← 프로젝트별 경로와 실행 명령어
 │   └── project-b/            ← 추가 방법: 이 구조 복사
-│       ├── config.json
-│       └── run.sh
+│       └── config.json
 ├── scripts/
 │   ├── run-all.sh            ← 등록된 모든 프로젝트 순회 실행 + Slack 요약 전송
 │   ├── run-project.sh        ← 단일 프로젝트 실행 + 결과 저장
@@ -37,11 +35,13 @@ e2e-scheduler/
 {
   "name": "ca-admin",
   "path": "/Users/yongho/projects/ca-admin",
-  "command": "pnpm ca-admin e2e",
+  "command": "pnpm ca-admin e2e --reporter=json",
   "slack_channel": "#qa-alerts",
   "schedule": "0 10 * * *"
 }
 ```
+
+`command`는 스케줄러가 실제 프로젝트 경로에서 실행하는 단일 기준입니다. 대시보드가 결과를 파싱할 수 있도록 Playwright JSON reporter 옵션을 포함해야 합니다.
 
 ## 실행 결과 JSON 형식
 
@@ -105,5 +105,4 @@ Block Kit 구성:
 
 ## 새 프로젝트 추가 방법
 
-`projects/` 폴더에 새 디렉토리 + `config.json` + `run.sh` 추가하면
-`run-all.sh`이 자동으로 순회 대상에 포함됩니다.
+`projects/` 폴더에 새 디렉토리 + `config.json`을 추가하면 `run-all.sh`이 자동으로 순회 대상에 포함됩니다.
