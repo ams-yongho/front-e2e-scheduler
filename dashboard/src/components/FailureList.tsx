@@ -13,6 +13,7 @@ type Props = {
 };
 
 const ERROR_SUMMARY_LIMIT = 140;
+const ANSI_ESCAPE_PATTERN = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
 
 export function FailureList({ failures }: Props) {
   if (failures.length === 0) return null;
@@ -198,6 +199,7 @@ function Pill({ children, tone = 'default' }: { children: React.ReactNode; tone?
 
 function summarizeError(error: string): string {
   const firstLine = error
+    .replace(ANSI_ESCAPE_PATTERN, '')
     .split('\n')
     .map((line) => line.trim())
     .find(Boolean);

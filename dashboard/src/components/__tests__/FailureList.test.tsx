@@ -82,6 +82,18 @@ it('truncates a very long error summary without changing the expanded error body
   expect(screen.getByText(/second line remains in expanded body/)).toBeInTheDocument();
 });
 
+it('removes ANSI control codes from the collapsed error summary', () => {
+  const ansiFailure: TestFailure = {
+    ...failures[0],
+    error: '\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).toBeVisible() failed',
+  };
+
+  render(<FailureList failures={[ansiFailure]} />);
+
+  expect(screen.getByText('expect(locator).toBeVisible() failed')).toBeInTheDocument();
+  expect(screen.queryByText(/\u001b/)).not.toBeInTheDocument();
+});
+
 it('renders nothing when failures is empty', () => {
   const { container } = render(<FailureList failures={[]} />);
   expect(container.firstChild).toBeNull();
