@@ -205,7 +205,8 @@ function readResultsByProject(projects, resultsDir, date) {
 }
 
 function sendSlackMessage(webhookUrl, text) {
-  const body = JSON.stringify({ text });
+  const payload = typeof text === 'string' ? { text } : text;
+  const body = JSON.stringify(payload);
   const parsed = new URL(webhookUrl);
 
   return new Promise((resolve, reject) => {
@@ -251,7 +252,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     return;
   }
 
-  let text;
+  let message;
   if (argv[0] === '--summary') {
     const [, date, projectsDir, resultsDir] = argv;
     if (!date || !projectsDir || !resultsDir) {
@@ -261,13 +262,12 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     }
     const projects = readProjectNames(projectsDir);
     const resultsByProject = readResultsByProject(projects, resultsDir, date);
-    const summaryMessage = buildSummaryMessage({
+    message = buildSummaryMessage({
       date,
       projects,
       resultsByProject,
       dashboardUrl: env.DASHBOARD_URL,
     });
-    text = summaryMessage.text;
   } else {
     const [resultsFile] = argv;
     if (!resultsFile) {
@@ -275,10 +275,10 @@ async function main(argv = process.argv.slice(2), env = process.env) {
       process.exitCode = 1;
       return;
     }
-    text = buildSingleResultMessage(readJson(resultsFile));
+    message = buildSingleResultMessage(readJson(resultsFile));
   }
 
-  await sendSlackMessage(webhookUrl, text);
+  await sendSlackMessage(webhookUrl, message);
 }
 
 if (require.main === module) {
