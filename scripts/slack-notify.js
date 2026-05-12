@@ -37,41 +37,145 @@ function validateDashboardUrl(dashboardUrl) {
   return dashboardUrl;
 }
 
-function buildSummaryMessage({ date, projects, resultsByProject, dashboardUrl }) {
-  const externalDashboardUrl = validateDashboardUrl(dashboardUrl);
-  const passedProjects = projects.filter(project => {
-    const result = resultsByProject.get(project);
-    return result && result.status === 'passed';
-  }).length;
-  const totals = projects.reduce((acc, project) => {
-    const result = resultsByProject.get(project);
-    if (!result) return acc;
-    acc.passed += result.passed || 0;
-    acc.total += result.total || 0;
-    acc.failed += result.failed || 0;
-    return acc;
-  }, { passed: 0, total: 0, failed: 0 });
+function parseDurationSeconds(duration) {
+  if (typeof duration !== 'string') return 0;
 
-  const summaryIcon = passedProjects === projects.length ? '✅' : '❌';
-  const lines = [
-    `[E2E 테스트 전체 결과] ${date}`,
-    `${summaryIcon} ${passedProjects}/${projects.length} 프로젝트 통과 | 총 ${totals.passed}/${totals.total} 통과 | 실패 ${totals.failed}건`,
-    '',
-  ];
+  let seconds = 0;
+  const minutesMatch = duration.match(/(\d+)\s*분/);
+  const secondsMatch = duration.match(/(\d+)\s*초/);
+
+  if (minutesMatch) seconds += Number(minutesMatch[1]) * 60;
+  if (secondsMatch) seconds += Number(secondsMatch[1]);
+
+  return seconds;
+}
+
+function formatDurationSeconds(totalSeconds) {
+  const safeSeconds = Number.isFinite(totalSeconds) ? totalSeconds : 0;
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+
+  if (minutes === 0) return `${seconds}초`;
+  return `${minutes}분 ${seconds}초`;
+}
+
+function plainText(text) {
+  return { type: 'plain_text', text, emoji: true };
+}
+
+function markdownText(text) {
+  return { type: 'mrkdwn', text };
+}
+
+function calculateSummary(projects, resultsByProject) {
+  return projects.reduce((summary, project) => {
+    const result = resultsByProject.get(project);
+    if (!result) return summary;
+
+    if (result.status === 'passed') summary.passedProjects += 1;
+    summary.passed += result.passed || 0;
+    summary.total += result.total || 0;
+    summary.failed += result.failed || 0;
+    summary.durationSeconds += parseDurationSeconds(result.duration);
+
+    return summary;
+  }, {
+    passedProjects: 0,
+    passed: 0,
+    total: 0,
+    failed: 0,
+    durationSeconds: 0,
+  });
+}
+
+function buildProjectFields(projects, resultsByProject) {
+  const fields = [];
 
   for (const project of projects) {
     const result = resultsByProject.get(project);
+
     if (!result) {
-      lines.push(`- ❌ ${project}: 결과 없음`);
+      fields.push(markdownText(`*❌ ${project}*`));
+      fields.push(markdownText('결과 없음'));
       continue;
     }
+
     const statusIcon = result.status === 'passed' ? '✅' : '❌';
-    lines.push(`- ${statusIcon} ${project}: ${result.passed}/${result.total} 통과 | 실패 ${result.failed}건 | ${result.duration}`);
+    fields.push(markdownText(`*${statusIcon} ${project}*`));
+    fields.push(markdownText(`${result.passed}/${result.total} 통과 · 실패 ${result.failed}건 · ${result.duration}`));
   }
 
-  lines.push('', `대시보드: ${externalDashboardUrl}`);
+  return fields;
+}
 
-  return lines.join('\n');
+function chunkFields(fields, chunkSize) {
+  const chunks = [];
+  for (let i = 0; i < fields.length; i += chunkSize) {
+    chunks.push(fields.slice(i, i + chunkSize));
+  }
+  return chunks;
+}
+
+function buildSummaryMessage({ date, projects, resultsByProject, dashboardUrl }) {
+  const externalDashboardUrl = validateDashboardUrl(dashboardUrl);
+  const {
+    passedProjects,
+    passed,
+    total,
+    failed,
+    durationSeconds,
+  } = calculateSummary(projects, resultsByProject);
+  const summaryIcon = passedProjects === projects.length ? '✅' : '❌';
+  const statusText = summaryIcon === '✅' ? '*✅ 전체 통과*' : '*❌ 일부 실패*';
+  const summaryFields = [
+    markdownText(`*프로젝트 통과*\n${passedProjects} / ${projects.length}`),
+    markdownText(`*테스트 통과*\n${passed} / ${total}`),
+    markdownText(`*실패*\n${failed}건`),
+    markdownText(`*총 소요시간*\n${formatDurationSeconds(durationSeconds)}`),
+  ];
+  const projectFields = buildProjectFields(projects, resultsByProject);
+  const text = [
+    `[E2E 테스트 전체 결과] ${date}`,
+    `${summaryIcon} ${passedProjects}/${projects.length} 프로젝트 통과 | 총 ${passed}/${total} 통과 | 실패 ${failed}건`,
+    `대시보드: ${externalDashboardUrl}`,
+  ].join('\n');
+  const blocks = [
+    {
+      type: 'header',
+      text: plainText(`E2E 테스트 전체 결과 · ${date}`),
+    },
+    {
+      type: 'section',
+      text: markdownText(statusText),
+    },
+    {
+      type: 'section',
+      fields: summaryFields,
+    },
+    {
+      type: 'divider',
+    },
+    ...chunkFields(projectFields, 10).map(fields => ({
+      type: 'section',
+      fields,
+    })),
+    {
+      type: 'divider',
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          text: plainText('대시보드 열기'),
+          url: externalDashboardUrl,
+          action_id: 'open_dashboard',
+        },
+      ],
+    },
+  ];
+
+  return { text, blocks };
 }
 
 function readJson(file) {
@@ -101,7 +205,8 @@ function readResultsByProject(projects, resultsDir, date) {
 }
 
 function sendSlackMessage(webhookUrl, text) {
-  const body = JSON.stringify({ text });
+  const payload = typeof text === 'string' ? { text } : text;
+  const body = JSON.stringify(payload);
   const parsed = new URL(webhookUrl);
 
   return new Promise((resolve, reject) => {
@@ -147,7 +252,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     return;
   }
 
-  let text;
+  let message;
   if (argv[0] === '--summary') {
     const [, date, projectsDir, resultsDir] = argv;
     if (!date || !projectsDir || !resultsDir) {
@@ -157,7 +262,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
     }
     const projects = readProjectNames(projectsDir);
     const resultsByProject = readResultsByProject(projects, resultsDir, date);
-    text = buildSummaryMessage({
+    message = buildSummaryMessage({
       date,
       projects,
       resultsByProject,
@@ -170,10 +275,10 @@ async function main(argv = process.argv.slice(2), env = process.env) {
       process.exitCode = 1;
       return;
     }
-    text = buildSingleResultMessage(readJson(resultsFile));
+    message = buildSingleResultMessage(readJson(resultsFile));
   }
 
-  await sendSlackMessage(webhookUrl, text);
+  await sendSlackMessage(webhookUrl, message);
 }
 
 if (require.main === module) {
