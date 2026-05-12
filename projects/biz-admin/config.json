@@ -1,0 +1,6 @@
+{
+  "name": "biz-admin",
+  "path": "/Users/yonghokim/Documents/GitHub/amass/biz-mall-front/apps/biz-admin",
+  "command": "pnpm playwright test",
+  "slack_channel": "#qa-alerts"
+}
