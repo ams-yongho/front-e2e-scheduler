@@ -10,7 +10,7 @@ e2e-scheduler/
 ├── docker-compose.yml
 ├── nginx.conf
 ├── launchd/
-│   └── com.front-e2e-scheduler.daily.plist.example
+│   └── com.front-e2e-scheduler.weekday-noon.plist.example
 ├── .env.example
 ├── projects/
 │   ├── ca-admin/
@@ -45,7 +45,7 @@ e2e-scheduler/
 
 ## 스케줄 실행 방식
 
-macOS 사용자 LaunchAgent가 매일 오전 10시에 `scripts/run-all.sh`를 실행합니다. E2E 실행은 Docker 컨테이너가 아니라 Mac 호스트에서 수행하며, Docker는 nginx로 대시보드와 `results/`를 서빙하는 역할만 담당합니다.
+macOS 사용자 LaunchAgent가 주중 12:00 KST에 `scripts/run-all.sh`를 실행합니다. E2E 실행은 Docker 컨테이너가 아니라 Mac 호스트에서 수행하며, Docker는 nginx로 대시보드와 `results/`를 서빙하는 역할만 담당합니다.
 
 ## 실행 결과 JSON 형식
 

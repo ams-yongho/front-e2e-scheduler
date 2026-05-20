@@ -1,3 +1,3 @@
 # Legacy note
 # macOS에서는 crontab 대신 launchd LaunchAgent 사용을 권장합니다.
-# 기본 등록 예시는 launchd/com.front-e2e-scheduler.daily.plist.example 파일을 참고하세요.
+# 기본 등록 예시는 launchd/com.front-e2e-scheduler.weekday-noon.plist.example 파일을 참고하세요.

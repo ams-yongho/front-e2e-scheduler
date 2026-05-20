@@ -13,11 +13,11 @@
 ### Task 1: Add LaunchAgent Template
 
 **Files:**
-- Create: `launchd/com.front-e2e-scheduler.daily.plist.example`
+- Create: `launchd/com.front-e2e-scheduler.weekday-noon.plist.example`
 
 - [x] **Step 1: Create the template file**
 
-Create `launchd/com.front-e2e-scheduler.daily.plist.example` with this content:
+Create `launchd/com.front-e2e-scheduler.weekday-noon.plist.example` with this content:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -25,7 +25,7 @@ Create `launchd/com.front-e2e-scheduler.daily.plist.example` with this content:
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>com.front-e2e-scheduler.daily</string>
+  <string>com.front-e2e-scheduler.weekday-noon</string>
 
   <key>ProgramArguments</key>
   <array>
@@ -36,10 +36,16 @@ Create `launchd/com.front-e2e-scheduler.daily.plist.example` with this content:
   <key>WorkingDirectory</key>
   <string>/Users/yonghokim/.codex/worktrees/a999/front-e2e-scheduler</string>
 
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key>
-    <integer>10</integer>
+    <integer>12</integer>
     <key>Minute</key>
     <integer>0</integer>
   </dict>
@@ -58,13 +64,13 @@ Create `launchd/com.front-e2e-scheduler.daily.plist.example` with this content:
 Run:
 
 ```bash
-plutil -lint launchd/com.front-e2e-scheduler.daily.plist.example
+plutil -lint launchd/com.front-e2e-scheduler.weekday-noon.plist.example
 ```
 
 Expected output:
 
 ```text
-launchd/com.front-e2e-scheduler.daily.plist.example: OK
+launchd/com.front-e2e-scheduler.weekday-noon.plist.example: OK
 ```
 
 ### Task 2: Update User-Facing Setup Documentation
@@ -88,16 +94,16 @@ Replace the `crontab 등록` section with a `LaunchAgent 등록` section that in
 
 ```bash
 mkdir -p ~/Library/LaunchAgents
-cp launchd/com.front-e2e-scheduler.daily.plist.example ~/Library/LaunchAgents/com.front-e2e-scheduler.daily.plist
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.front-e2e-scheduler.daily.plist
-launchctl enable gui/$(id -u)/com.front-e2e-scheduler.daily
+cp launchd/com.front-e2e-scheduler.weekday-noon.plist.example ~/Library/LaunchAgents/com.front-e2e-scheduler.weekday-noon.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.front-e2e-scheduler.weekday-noon.plist
+launchctl enable gui/$(id -u)/com.front-e2e-scheduler.weekday-noon
 ```
 
 Also include verification commands:
 
 ```bash
-launchctl print gui/$(id -u)/com.front-e2e-scheduler.daily
-launchctl kickstart -k gui/$(id -u)/com.front-e2e-scheduler.daily
+launchctl print gui/$(id -u)/com.front-e2e-scheduler.weekday-noon
+launchctl kickstart -k gui/$(id -u)/com.front-e2e-scheduler.weekday-noon
 tail -f logs/launchd.out.log logs/launchd.err.log
 ```
 
@@ -133,7 +139,7 @@ Use this label:
 Use this execution bullet:
 
 ```markdown
-- 로컬 Mac의 LaunchAgent가 매일 오전 10시에 `scripts/run-all.sh` 실행 → 등록된 모든 프로젝트 E2E 테스트 순회
+- 로컬 Mac의 LaunchAgent가 주중 12:00 KST에 `scripts/run-all.sh` 실행 → 등록된 모든 프로젝트 E2E 테스트 순회
 ```
 
 - [x] **Step 2: Convert crontab.example into a legacy note**
@@ -143,7 +149,7 @@ Replace `crontab.example` with:
 ```text
 # Legacy note
 # macOS에서는 crontab 대신 launchd LaunchAgent 사용을 권장합니다.
-# 기본 등록 예시는 launchd/com.front-e2e-scheduler.daily.plist.example 파일을 참고하세요.
+# 기본 등록 예시는 launchd/com.front-e2e-scheduler.weekday-noon.plist.example 파일을 참고하세요.
 ```
 
 ### Task 4: Verify Consistency

@@ -10,7 +10,7 @@
 
 ## 최종 선택: Mac LaunchAgent + Docker nginx 대시보드
 
-- 로컬 Mac의 LaunchAgent가 매일 오전 10시에 등록된 모든 프로젝트 E2E 테스트를 순회 실행
+- 로컬 Mac의 LaunchAgent가 주중 12:00 KST에 등록된 모든 프로젝트 E2E 테스트를 순회 실행
 - 결과를 JSON으로 저장하고 Slack `#qa-alerts` 채널로 전송
 - Docker 컨테이너는 E2E 테스트를 실행하지 않고 nginx로 웹 대시보드와 `results/`를 서빙
 - 테스트 대상이 회사 내부망 스테이징 서버이므로, Mac이 내부망 또는 VPN에 연결된 상태에서 호스트 환경의 프로젝트 경로와 Playwright 의존성을 그대로 사용한다
