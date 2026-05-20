@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-CRON_SCHEDULE="${CRON_SCHEDULE:-0 10 * * *}"  # 기본값: 매일 오전 10시 KST
+CRON_SCHEDULE="${CRON_SCHEDULE:-0 12 * * 1-5}"  # 기본값: 주중 12:00 KST
 CRON_TZ="TZ=Asia/Seoul"
 CRON_CMD="$CRON_SCHEDULE /bin/bash $SCRIPT_DIR/run-all.sh >> $REPO_ROOT/logs/cron.log 2>&1"
 

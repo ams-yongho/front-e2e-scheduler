@@ -2,10 +2,10 @@
 
 ## 1. 소개
 
-Mac 호스트에서 launchd LaunchAgent를 통해 Playwright E2E 테스트를 주중 자동 실행하고, 결과를 JSON으로 저장하며, Slack으로 알림을 발송하는 스케줄러입니다. Docker nginx를 통해 팀 대시보드를 제공합니다.
+Mac 호스트에서 cron을 통해 Playwright E2E 테스트를 주중 자동 실행하고, 결과를 JSON으로 저장하며, Slack으로 알림을 발송하는 스케줄러입니다. Docker nginx를 통해 팀 대시보드를 제공합니다.
 
 **동작 흐름:**
-- 주중 12:00 KST — LaunchAgent → `scripts/run-all.sh` → 프로젝트별 결과 `results/[project]/YYYY-MM-DD.json` 저장 → `results/manifest.json` 업데이트 → Slack 전체 요약 알림 1회 전송
+- 주중 12:00 KST — cron → `scripts/run-all.sh` → 프로젝트별 결과 `results/[project]/YYYY-MM-DD.json` 저장 → `results/manifest.json` 업데이트 → Slack 전체 요약 알림 1회 전송
 - Docker: nginx (포트 8080) → `dashboard/dist/` 빌드 결과 + `results/` 볼륨 마운트
 
 ---
@@ -81,57 +81,61 @@ docker compose up -d
 
 ---
 
-## 3. LaunchAgent 등록
+## 3. crontab 등록
 
-macOS에서는 `crontab`보다 launchd LaunchAgent 사용을 권장합니다. 이 스케줄러는 현재 로그인한 사용자 환경의 프로젝트 경로, pnpm, Playwright 의존성, VPN 연결을 그대로 사용해야 하므로 사용자 LaunchAgent로 등록합니다.
-LaunchAgent의 `StartCalendarInterval`은 Mac 시스템 로컬 시간대를 따릅니다. 운영 Mac의 시간대가 KST인지 먼저 확인합니다.
-launchd는 로그인 셸의 `PATH`를 자동으로 물려받지 않으므로 plist에서 `/opt/homebrew/bin`과 `/usr/local/bin`을 포함한 `PATH`를 명시합니다.
+Mac 호스트의 `cron`이 주중 12:00 KST에 `scripts/run-all.sh`를 실행합니다. cron은 로그인 셸의 `PATH`를 자동으로 물려받지 않으므로 crontab 상단에 `/opt/homebrew/bin`과 `/usr/local/bin`을 포함한 `PATH`를 명시합니다. macOS 시스템 시간대가 KST인지 먼저 확인합니다.
 
 ```bash
 date +%Z
 ```
 
-운영 repo 기준 plist를 사용자 LaunchAgents 디렉터리에 복사하고 등록합니다.
+### 자동 등록 (권장)
+
+`scripts/setup-cron.sh`가 기본 스케줄(`0 12 * * 1-5`)로 crontab 항목을 추가합니다.
 
 ```bash
-mkdir -p ~/Library/LaunchAgents
-cp launchd/com.front-e2e-scheduler.weekday-noon.plist.example ~/Library/LaunchAgents/com.front-e2e-scheduler.weekday-noon.plist
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.front-e2e-scheduler.weekday-noon.plist
-launchctl enable gui/$(id -u)/com.front-e2e-scheduler.weekday-noon
+./scripts/setup-cron.sh
 ```
 
-등록 상태 확인:
+다른 스케줄을 쓰려면 환경 변수로 덮어씁니다:
 
 ```bash
-launchctl print gui/$(id -u)/com.front-e2e-scheduler.weekday-noon
+CRON_SCHEDULE="0 9 * * 1-5" ./scripts/setup-cron.sh
 ```
 
-즉시 수동 실행:
+### 수동 등록
 
 ```bash
-launchctl kickstart -k gui/$(id -u)/com.front-e2e-scheduler.weekday-noon
+crontab -e
 ```
 
-로그 확인:
+`crontab.example`의 한 줄을 절대 경로로 수정해서 추가합니다:
+
+```
+PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
+0 12 * * 1-5 /bin/bash /Users/yongho/projects/e2e-scheduler/scripts/run-all.sh >> /Users/yongho/projects/e2e-scheduler/logs/cron.log 2>&1
+```
+
+등록 후 확인:
 
 ```bash
-tail -f logs/launchd.out.log logs/launchd.err.log
+crontab -l
 ```
 
-즉시 실행 후 `launchctl print`에서 `last exit code = 126`이 보이고 `logs/launchd.err.log`에 `Operation not permitted`가 남으면 macOS 개인정보 보호 권한에 막힌 상태입니다. 특히 repo와 테스트 대상 프로젝트가 `~/Documents` 아래에 있으면 LaunchAgent가 실행한 `/bin/bash`, `node`, `pnpm` 프로세스가 Documents 접근 권한을 받지 못할 수 있습니다.
+### macOS 권한 (TCC)
+
+repo와 테스트 대상 프로젝트가 `~/Documents` 아래에 있으면 cron이 실행한 `/bin/bash`, `node`, `pnpm` 프로세스가 Documents 접근 권한을 받지 못해 `Operation not permitted`로 실패합니다.
 
 해결 방법은 둘 중 하나를 선택합니다.
 
 1. 권장: 운영 repo와 테스트 대상 프로젝트들을 `~/Developer`, `~/Projects`처럼 macOS 보호 폴더가 아닌 경로로 옮기고 `projects/*/config.json`의 `path`를 함께 갱신합니다.
-2. 대안: 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 LaunchAgent가 사용하는 실행 파일(`/bin/bash`, `/opt/homebrew/bin/node` 등)에 접근 권한을 부여합니다. 이 방식은 macOS 버전과 설치 방식에 따라 추가 바이너리 권한이 더 필요할 수 있습니다.
+2. 대안: 시스템 설정 → 개인정보 보호 및 보안 → 전체 디스크 접근 권한에서 `/usr/sbin/cron`에 접근 권한을 부여합니다. cron이 띄운 자식 프로세스(bash, node, pnpm 등)는 cron의 권한을 상속받으므로 cron 한 건만 등록하면 됩니다.
 
-plist를 수정한 뒤 재등록해야 할 때:
+### 즉시 수동 실행 / 로그 확인
 
 ```bash
-launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.front-e2e-scheduler.weekday-noon.plist
-cp launchd/com.front-e2e-scheduler.weekday-noon.plist.example ~/Library/LaunchAgents/com.front-e2e-scheduler.weekday-noon.plist
-launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.front-e2e-scheduler.weekday-noon.plist
-launchctl enable gui/$(id -u)/com.front-e2e-scheduler.weekday-noon
+./scripts/run-all.sh
+tail -f logs/cron.log
 ```
 
 ---
@@ -197,4 +201,4 @@ cp -r projects/ca-admin projects/new-project
 - [ ] `./scripts/run-all.sh` 완료 후 Slack #qa-alerts 채널에 전체 요약 메시지 1건 수신됨
 - [ ] `docker compose up -d` 실행 후 `http://localhost:8080` 접속 가능
 - [ ] 대시보드에 등록된 프로젝트 카드 및 히스토리 표시됨
-- [ ] Mac LaunchAgent에 등록됨 (`launchctl print gui/$(id -u)/com.front-e2e-scheduler.weekday-noon`로 확인)
+- [ ] Mac crontab에 등록됨 (`crontab -l`로 확인)

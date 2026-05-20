@@ -1,3 +1,4 @@
-# Legacy note
-# macOS에서는 crontab 대신 launchd LaunchAgent 사용을 권장합니다.
-# 기본 등록 예시는 launchd/com.front-e2e-scheduler.weekday-noon.plist.example 파일을 참고하세요.
+# E2E 스케줄러 - 주중 12:00 KST 실행
+# 등록 방법: crontab -e 실행 후 아래 줄을 절대 경로로 수정해서 추가
+# (또는 scripts/setup-cron.sh 실행)
+0 12 * * 1-5 /bin/bash /absolute/path/to/e2e-scheduler/scripts/run-all.sh >> /absolute/path/to/e2e-scheduler/logs/cron.log 2>&1
