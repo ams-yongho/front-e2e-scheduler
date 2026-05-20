@@ -9,7 +9,8 @@ e2e-scheduler/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── nginx.conf
-├── crontab
+├── launchd/
+│   └── com.front-e2e-scheduler.weekday-noon.plist.example
 ├── .env.example
 ├── projects/
 │   ├── ca-admin/
@@ -36,12 +37,15 @@ e2e-scheduler/
   "name": "ca-admin",
   "path": "/Users/yongho/projects/ca-admin",
   "command": "pnpm ca-admin e2e --reporter=json",
-  "slack_channel": "#qa-alerts",
-  "schedule": "0 10 * * *"
+  "slack_channel": "#qa-alerts"
 }
 ```
 
 `command`는 스케줄러가 실제 프로젝트 경로에서 실행하는 단일 기준입니다. 대시보드가 결과를 파싱할 수 있도록 Playwright JSON reporter 옵션을 포함해야 합니다.
+
+## 스케줄 실행 방식
+
+macOS 사용자 LaunchAgent가 주중 12:00 KST에 `scripts/run-all.sh`를 실행합니다. E2E 실행은 Docker 컨테이너가 아니라 Mac 호스트에서 수행하며, Docker는 nginx로 대시보드와 `results/`를 서빙하는 역할만 담당합니다.
 
 ## 실행 결과 JSON 형식
 
