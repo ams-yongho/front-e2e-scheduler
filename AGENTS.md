@@ -6,9 +6,9 @@
 
 ## 아키텍처
 
-**도커 컨테이너 + cron + nginx 대시보드**
+**Mac LaunchAgent + 도커 nginx 대시보드**
 
-- 로컬 Mac의 cron이 매일 오전 10시에 `scripts/run-all.sh` 실행 → 등록된 모든 프로젝트 E2E 테스트 순회
+- 로컬 Mac의 LaunchAgent가 매일 오전 10시에 `scripts/run-all.sh` 실행 → 등록된 모든 프로젝트 E2E 테스트 순회
 - 결과는 `results/[project]/YYYY-MM-DD.json`에 저장하고 Slack `#qa-alerts`로 전송
 - 도커 nginx(포트 8080)가 `dashboard/dist/` + `results/` 볼륨을 서빙
 

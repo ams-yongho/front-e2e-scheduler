@@ -2,10 +2,10 @@
 
 ## 1. 소개
 
-Mac 호스트에서 cron을 통해 Playwright E2E 테스트를 매일 자동 실행하고, 결과를 JSON으로 저장하며, Slack으로 알림을 발송하는 스케줄러입니다. Docker nginx를 통해 팀 대시보드를 제공합니다.
+Mac 호스트에서 launchd LaunchAgent를 통해 Playwright E2E 테스트를 매일 자동 실행하고, 결과를 JSON으로 저장하며, Slack으로 알림을 발송하는 스케줄러입니다. Docker nginx를 통해 팀 대시보드를 제공합니다.
 
 **동작 흐름:**
-- 매일 10:00 — cron → `scripts/run-all.sh` → 프로젝트별 결과 `results/[project]/YYYY-MM-DD.json` 저장 → `results/manifest.json` 업데이트 → Slack 전체 요약 알림 1회 전송
+- 매일 10:00 — LaunchAgent → `scripts/run-all.sh` → 프로젝트별 결과 `results/[project]/YYYY-MM-DD.json` 저장 → `results/manifest.json` 업데이트 → Slack 전체 요약 알림 1회 전송
 - Docker: nginx (포트 8080) → `dashboard/dist/` 빌드 결과 + `results/` 볼륨 마운트
 
 ---
@@ -30,14 +30,21 @@ DASHBOARD_URL=http://172.17.2.240:8080
 
 ### 2) 프로젝트 config 확인
 
-`projects/*/config.json`의 `path` 항목이 로컬 ca-front 앱의 실제 경로를 가리키는지 확인합니다.
+`projects/*/config.json`의 `path` 항목이 로컬 Mac에 체크아웃된 각 프론트엔드 앱의 실제 경로를 가리키는지 확인합니다.
 
 현재 등록된 프로젝트:
+- `biz-admin`
+- `biz-mall`
 - `ca-admin`
-- `typist`
 - `cv-view`
-- `vis`
+- `find-parts`
+- `fp-part-quote`
+- `partsfit-mall`
+- `partsfit-mobile`
 - `pv-view`
+- `scm-front`
+- `typist`
+- `vis`
 
 예시:
 
@@ -74,32 +81,33 @@ docker compose up -d
 
 ---
 
-## 3. crontab 등록
+## 3. LaunchAgent 등록
 
-Mac 터미널에서 crontab 편집기를 엽니다:
-
-```bash
-crontab -e
-```
-
-아래 내용을 추가합니다 (`/absolute/path/to/e2e-scheduler` 부분을 실제 절대 경로로 교체):
-
-```
-0 10 * * * /bin/bash /absolute/path/to/e2e-scheduler/scripts/run-all.sh >> /absolute/path/to/e2e-scheduler/logs/cron.log 2>&1
-```
-
-**예시** (실제 경로 사용):
-
-```
-0 10 * * * /bin/bash /Users/yongho/projects/e2e-scheduler/scripts/run-all.sh >> /Users/yongho/projects/e2e-scheduler/logs/cron.log 2>&1
-```
-
-> 참고: `crontab.example` 파일에 등록 예시가 포함되어 있습니다.
-
-등록 후 확인:
+macOS에서는 `crontab`보다 launchd LaunchAgent 사용을 권장합니다. 이 스케줄러는 현재 로그인한 사용자 환경의 프로젝트 경로, pnpm, Playwright 의존성, VPN 연결을 그대로 사용해야 하므로 사용자 LaunchAgent로 등록합니다.
 
 ```bash
-crontab -l
+mkdir -p ~/Library/LaunchAgents
+cp launchd/com.front-e2e-scheduler.daily.plist.example ~/Library/LaunchAgents/com.front-e2e-scheduler.daily.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.front-e2e-scheduler.daily.plist
+launchctl enable gui/$(id -u)/com.front-e2e-scheduler.daily
+```
+
+등록 상태 확인:
+
+```bash
+launchctl print gui/$(id -u)/com.front-e2e-scheduler.daily
+```
+
+즉시 수동 실행:
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.front-e2e-scheduler.daily
+```
+
+로그 확인:
+
+```bash
+tail -f logs/launchd.out.log logs/launchd.err.log
 ```
 
 ---
@@ -165,4 +173,4 @@ cp -r projects/ca-admin projects/new-project
 - [ ] `./scripts/run-all.sh` 완료 후 Slack #qa-alerts 채널에 전체 요약 메시지 1건 수신됨
 - [ ] `docker compose up -d` 실행 후 `http://localhost:8080` 접속 가능
 - [ ] 대시보드에 등록된 프로젝트 카드 및 히스토리 표시됨
-- [ ] Mac crontab에 등록됨 (`crontab -l`로 확인)
+- [ ] Mac LaunchAgent에 등록됨 (`launchctl print gui/$(id -u)/com.front-e2e-scheduler.daily`로 확인)
