@@ -1,6 +1,6 @@
 {
   "name": "vis",
   "path": "/Users/yonghokim/Documents/GitHub/amass/ca-front/apps/vis",
-  "command": "pnpm playwright test --reporter=json",
-  "slack_channel": "#qa-alerts"
+  "slack_channel": "#qa-alerts",
+  "e2e_command": "pnpm playwright test --reporter=json"
 }

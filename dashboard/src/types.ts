@@ -1,5 +1,6 @@
 export interface Manifest {
   projects: string[];
+  tests: Record<string, ('e2e' | 'unit')[]>;
   lastUpdated: string;
 }
 
@@ -45,6 +46,7 @@ export interface SlowTest {
 
 export interface TestResult {
   project: string;
+  type?: 'e2e';
   date: string;
   status: 'passed' | 'failed';
   total: number;
@@ -56,5 +58,27 @@ export interface TestResult {
   browsers: BrowserStat[];
   failures: TestFailure[];
   flakyTests: FlakyTest[];
+  slowTests: SlowTest[];
+}
+
+export interface UnitTestFailure {
+  test: string;
+  file: string;
+  line: number;
+  error: string;
+}
+
+export interface UnitTestResult {
+  project: string;
+  type: 'unit';
+  date: string;
+  status: 'passed' | 'failed';
+  framework: 'vitest' | 'jest' | 'unknown';
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  duration: string;
+  failures: UnitTestFailure[];
   slowTests: SlowTest[];
 }

@@ -9,8 +9,7 @@ e2e-scheduler/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── nginx.conf
-├── launchd/
-│   └── com.front-e2e-scheduler.weekday-noon.plist.example
+├── crontab.example
 ├── .env.example
 ├── projects/
 │   ├── ca-admin/
@@ -23,7 +22,10 @@ e2e-scheduler/
 │   └── slack-notify.js       ← Slack Webhook 전송 메시지 생성/전송
 ├── results/                  ← 실행 결과 JSON 자동 저장
 │   └── ca-admin/
-│       └── 2026-05-08.json
+│       ├── e2e/
+│       │   └── 2026-05-08.json
+│       └── unit/
+│           └── 2026-05-08.json
 ├── dashboard/                ← 웹 대시보드 (nginx 서빙)
 │   └── index.html
 ├── CLAUDE.md
@@ -36,22 +38,28 @@ e2e-scheduler/
 {
   "name": "ca-admin",
   "path": "/Users/yongho/projects/ca-admin",
-  "command": "pnpm ca-admin e2e --reporter=json",
+  "e2e_command": "pnpm playwright test --reporter=json",
+  "unit_command": "pnpm vitest run --reporter=json",
   "slack_channel": "#qa-alerts"
 }
 ```
 
-`command`는 스케줄러가 실제 프로젝트 경로에서 실행하는 단일 기준입니다. 대시보드가 결과를 파싱할 수 있도록 Playwright JSON reporter 옵션을 포함해야 합니다.
+- `e2e_command`가 없으면 해당 프로젝트의 E2E는 skip, 결과 파일도 생성하지 않는다.
+- `unit_command`가 없으면 유닛테스트는 skip되고 Slack/대시보드에 `Unit -`로 표시된다.
+- Playwright JSON reporter 옵션 포함은 동일. 유닛테스트는 Vitest 또는 Jest의 JSON reporter를 사용한다.
 
 ## 스케줄 실행 방식
 
-macOS 사용자 LaunchAgent가 주중 12:00 KST에 `scripts/run-all.sh`를 실행합니다. E2E 실행은 Docker 컨테이너가 아니라 Mac 호스트에서 수행하며, Docker는 nginx로 대시보드와 `results/`를 서빙하는 역할만 담당합니다.
+Mac 호스트의 cron이 주중 12:00 KST에 `scripts/run-all.sh`를 실행합니다. E2E 실행은 Docker 컨테이너가 아니라 Mac 호스트에서 수행하며, Docker는 nginx로 대시보드와 `results/`를 서빙하는 역할만 담당합니다. 등록 절차는 [README.md](../README.md) 참고.
 
-## 실행 결과 JSON 형식
+## E2E 결과 JSON
+
+`results/[project]/e2e/YYYY-MM-DD.json`. 기존 Playwright 파싱 결과에 `"type": "e2e"` 필드가 추가되어 있다.
 
 ```json
 {
   "project": "ca-admin",
+  "type": "e2e",
   "date": "2026-05-08",
   "status": "failed",
   "total": 50,
@@ -70,6 +78,29 @@ macOS 사용자 LaunchAgent가 주중 12:00 KST에 `scripts/run-all.sh`를 실�
 }
 ```
 
+## 유닛테스트 결과 JSON
+
+`results/[project]/unit/YYYY-MM-DD.json`.
+
+```json
+{
+  "project": "ca-admin",
+  "type": "unit",
+  "date": "2026-05-21",
+  "status": "passed",
+  "framework": "vitest",
+  "total": 120,
+  "passed": 118,
+  "failed": 2,
+  "skipped": 0,
+  "duration": "12초",
+  "failures": [{ "test": "...", "file": "...", "line": 14, "error": "..." }],
+  "slowTests": [{ "test": "...", "file": "...", "durationMs": 850 }]
+}
+```
+
+`framework`는 `unit_command`의 단어로 우선 식별, 실패 시 reporter 출력 마커로 fallback. 식별 안 되면 `"unknown"`.
+
 ## Slack 알림 형식
 
 전체 요약 알림은 Slack Incoming Webhook에 `{ text, blocks }` payload로 전송합니다.
@@ -79,17 +110,20 @@ macOS 사용자 LaunchAgent가 주중 12:00 KST에 `scripts/run-all.sh`를 실�
 
 Block Kit 구성:
 
-1. Header: `E2E 테스트 전체 결과 · YYYY-MM-DD`
+1. Header: `테스트 전체 결과 · YYYY-MM-DD`
 2. Status section: `✅ 전체 통과` 또는 `❌ 일부 실패`
-3. Summary fields:
-   - `프로젝트 통과`: `5 / 8`
-   - `테스트 통과`: `107 / 412`
-   - `실패`: `137건`
-   - `총 소요시간`: `2분 50초`
-4. Project result fields:
-   - `✅ ca-admin` / `19/21 통과 · 실패 0건 · 29초`
-   - `❌ partsfit-mall` / `69/160 통과 · 실패 18건 · 19초`
-   - 결과 파일이 없으면 `❌ project-name` / `결과 없음`
+3. Summary fields (E2E와 Unit 두 개):
+   - **E2E Summary**
+     - `프로젝트 통과`: `5 / 8`
+     - `테스트 통과`: `107 / 412`
+   - **Unit Summary**
+     - `프로젝트 통과`: `4 / 8`
+     - `테스트 통과`: `1058 / 1212`
+4. Project result fields (한 줄에 E2E · Unit 합산):
+   - `✅ ca-admin` / `E2E 19/21 · Unit 118/120 · 41초`
+   - `❌ partsfit-mall` / `E2E 69/160 · Unit - · 19초`
+   - `⏸ project-c` / `E2E - · Unit 45/50 · 8초`
+   - 등록되지 않은 테스트 타입은 `-`로 표시
 5. Actions: `대시보드 열기` 버튼
 
 - `run-all.sh`에서 모든 프로젝트 실행이 끝난 뒤 Slack 요약을 한 번만 전송
@@ -97,16 +131,34 @@ Block Kit 구성:
 - 실패 테스트 상세는 Slack 메시지에 포함하지 않고 대시보드와 결과 JSON에서 확인
 - 대시보드 링크는 `.env`의 `DASHBOARD_URL`을 사용하며, Slack 수신자가 접근할 수 있는 공개 도메인, 사내 DNS, VPN 주소, 또는 터널 URL이어야 함
 - `DASHBOARD_URL`이 없거나 `localhost`/`127.0.0.1`/`::1`이면 Slack 요약 전송을 실패 처리
-- 특정 프로젝트 결과 파일이 생성되지 않으면 요약에 `결과 없음`으로 표시
+- 특정 프로젝트 결과 파일이 생성되지 않으면 요약에 해당 타입을 `-`로 표시
+- 전체 상태는 E2E/Unit 모두 통과 시 ✅
+
+## manifest.json 형식
+
+`results/manifest.json`. 대시보드와 Slack이 활용한다.
+
+```json
+{
+  "projects": ["ca-admin", "biz-admin"],
+  "tests": {
+    "ca-admin": ["e2e", "unit"],
+    "biz-admin": ["e2e"]
+  },
+  "lastUpdated": "2026-05-21T03:00:00.000Z"
+}
+```
+
+`tests[project]`는 해당 프로젝트가 등록한 테스트 타입 배열. `config.json`의 `e2e_command`/`unit_command` 존재 여부로 채워진다.
 
 ## 대시보드 요구사항
 
 - 프론트 챕터 팀원들이 함께 보는 용도 → 디자인 필요
-- 프로젝트별 최근 실행 결과 카드 (통과/실패/소요시간)
-- 날짜별 히스토리 테이블
-- 실패 시 빨간 배지 + 상세 내용 표시
+- 프로젝트 카드는 E2E/Unit 두 줄로 통과/실패/시간을 표시
+- 상세 페이지는 E2E/Unit 두 개의 탭으로 분리. 미등록 타입은 비활성 탭
+- Unit 탭은 framework 배지, 실패 목록, 느린 테스트, 30일 히스토리를 표시
 - `results/` 폴더의 JSON을 읽어서 렌더링
 
 ## 새 프로젝트 추가 방법
 
-`projects/` 폴더에 새 디렉토리 + `config.json`을 추가하면 `run-all.sh`이 자동으로 순회 대상에 포함됩니다.
+`projects/` 폴더에 새 디렉토리 + `config.json`을 추가하면 `run-all.sh`이 자동으로 순회 대상에 포함됩니다. `unit_command`를 `config.json`에 함께 등록하면 유닛테스트도 자동 순회 대상에 포함된다.

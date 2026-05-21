@@ -122,6 +122,7 @@ function parsePlaywrightJSON(raw, projectName, date) {
   const skipped = stats.skipped || 0;
   return {
     project: projectName,
+    type: 'e2e',
     date,
     status: unexpected > 0 ? 'failed' : 'passed',
     total: expected + unexpected + flaky + skipped,

@@ -98,6 +98,7 @@ const result = parsePlaywrightJSON(mockPWOutput, 'ca-admin', '2026-05-09');
 
 // === 기존 필드 (호환성) ===
 assert.strictEqual(result.project, 'ca-admin', 'project');
+assert.strictEqual(result.type, 'e2e', 'parsed result must mark its type as e2e');
 assert.strictEqual(result.date, '2026-05-09', 'date');
 assert.strictEqual(result.status, 'failed', 'status');
 assert.strictEqual(result.total, 7, 'total = expected + unexpected + flaky + skipped');

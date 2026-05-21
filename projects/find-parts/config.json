@@ -1,6 +1,6 @@
 {
   "name": "find-parts",
   "path": "/Users/yonghokim/Documents/GitHub/amass/fp-front/packages/find-parts",
-  "command": "pnpm playwright test --reporter=json",
-  "slack_channel": "#qa-alerts"
+  "slack_channel": "#qa-alerts",
+  "e2e_command": "pnpm playwright test --reporter=json"
 }

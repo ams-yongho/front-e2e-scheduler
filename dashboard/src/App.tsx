@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
-import { fetchManifest, fetchResult, last30Days } from './api';
+import { fetchManifest, fetchE2eResult, fetchUnitResult, last30Days } from './api';
 import { ProjectGrid } from './components/ProjectGrid';
 import { ProjectCard } from './components/ProjectCard';
 import { computeTrend } from './lib/trend';
-import type { TestResult } from './types';
+import type { TestResult, UnitTestResult } from './types';
+
+export type RegisteredTypes = ('e2e' | 'unit')[];
 
 export type ProjectData = {
   name: string;
-  latest: TestResult | null;
-  history: TestResult[];
-  trend: number[];
+  registered: RegisteredTypes;
+  e2eLatest: TestResult | null;
+  e2eHistory: TestResult[];
+  e2eTrend: number[];
+  unitLatest: UnitTestResult | null;
+  unitHistory: UnitTestResult[];
 };
 
 export default function App() {
@@ -28,15 +33,27 @@ export default function App() {
         const days = last30Days();
         const projectData = await Promise.all(
           manifest.projects.map(async name => {
-            const results = (
-              await Promise.all(days.map(date => fetchResult(name, date)))
-            ).filter((r): r is TestResult => r !== null);
+            const registered = manifest.tests[name] ?? ['e2e'];
+            const wantsE2e = registered.includes('e2e');
+            const wantsUnit = registered.includes('unit');
+
+            const [e2eResults, unitResults] = await Promise.all([
+              wantsE2e
+                ? Promise.all(days.map(date => fetchE2eResult(name, date))).then(arr => arr.filter((r): r is TestResult => r !== null))
+                : Promise.resolve([] as TestResult[]),
+              wantsUnit
+                ? Promise.all(days.map(date => fetchUnitResult(name, date))).then(arr => arr.filter((r): r is UnitTestResult => r !== null))
+                : Promise.resolve([] as UnitTestResult[]),
+            ]);
 
             return {
               name,
-              latest: results[0] ?? null,
-              history: results,
-              trend: computeTrend(results),
+              registered,
+              e2eLatest: e2eResults[0] ?? null,
+              e2eHistory: e2eResults,
+              e2eTrend: computeTrend(e2eResults),
+              unitLatest: unitResults[0] ?? null,
+              unitHistory: unitResults,
             };
           })
         );
@@ -67,11 +84,15 @@ export default function App() {
     );
   }
 
-  const passedCount = projects.filter(p => p.latest && p.latest.failed === 0).length;
-  const failedCount = projects.filter(p => p.latest && p.latest.failed > 0).length;
-  const flakyTotal = projects.reduce((sum, p) => sum + (p.latest?.flaky || 0), 0);
-  const totalTests = projects.reduce((sum, p) => sum + (p.latest?.total || 0), 0);
-  const passedTests = projects.reduce((sum, p) => sum + (p.latest?.passed || 0), 0);
+  const passedCount = projects.filter(p => isProjectPassing(p)).length;
+  const failedCount = projects.filter(p => isProjectFailing(p)).length;
+  const flakyTotal = projects.reduce((sum, p) => sum + (p.e2eLatest?.flaky || 0), 0);
+  const totalTests =
+    projects.reduce((sum, p) => sum + (p.e2eLatest?.total || 0), 0) +
+    projects.reduce((sum, p) => sum + (p.unitLatest?.total || 0), 0);
+  const passedTests =
+    projects.reduce((sum, p) => sum + (p.e2eLatest?.passed || 0), 0) +
+    projects.reduce((sum, p) => sum + (p.unitLatest?.passed || 0), 0);
   const passRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
   const selectedProject = selectedProjectName
     ? projects.find(project => project.name === selectedProjectName)
@@ -140,9 +161,12 @@ export default function App() {
             <DetailNav projectName={selectedProject.name} onBack={showProjectGrid} />
             <ProjectCard
               projectName={selectedProject.name}
-              latest={selectedProject.latest}
-              history={selectedProject.history}
-              trend={selectedProject.trend}
+              registered={selectedProject.registered}
+              e2eLatest={selectedProject.e2eLatest}
+              e2eHistory={selectedProject.e2eHistory}
+              e2eTrend={selectedProject.e2eTrend}
+              unitLatest={selectedProject.unitLatest}
+              unitHistory={selectedProject.unitHistory}
             />
           </>
         ) : (
@@ -151,6 +175,19 @@ export default function App() {
       </main>
     </div>
   );
+}
+
+function isProjectPassing(p: ProjectData) {
+  if (p.registered.length === 0) return false;
+  if (p.registered.includes('e2e') && (!p.e2eLatest || p.e2eLatest.failed > 0)) return false;
+  if (p.registered.includes('unit') && p.unitLatest && p.unitLatest.failed > 0) return false;
+  return Boolean(p.e2eLatest || p.unitLatest);
+}
+
+function isProjectFailing(p: ProjectData) {
+  if (p.registered.includes('e2e') && p.e2eLatest && p.e2eLatest.failed > 0) return true;
+  if (p.registered.includes('unit') && p.unitLatest && p.unitLatest.failed > 0) return true;
+  return false;
 }
 
 function getSelectedProjectFromUrl(): string | null {
