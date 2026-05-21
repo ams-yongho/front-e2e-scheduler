@@ -61,7 +61,25 @@ run_e2e() {
   local out_dir="$RESULTS_DIR/e2e"
   local out_file="$out_dir/$DATE.json"
   local tmp="/tmp/pw-${PROJECT_NAME}-${DATE}.json"
+  local attachments_src="$PROJECT_PATH/test-results"
+  local attachments_root="$out_dir/attachments"
+  local attachments_out="$attachments_root/$DATE"
+  local attachments_url="/results/$PROJECT_NAME/e2e/attachments/$DATE"
   mkdir -p "$out_dir"
+
+  # 14일 보존: 오늘 기준 14일 이전 날짜 디렉토리 정리
+  local cutoff
+  cutoff=$(node -e "console.log(new Date(Date.now()-14*86400000).toISOString().slice(0,10))")
+  if [[ -d "$attachments_root" ]]; then
+    for d in "$attachments_root"/*/; do
+      [[ -d "$d" ]] || continue
+      local name
+      name=$(basename "$d")
+      if [[ "$name" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && [[ "$name" < "$cutoff" ]]; then
+        rm -rf "$d"
+      fi
+    done
+  fi
 
   if ! (cd "$PROJECT_PATH" && pnpm exec playwright --version >/dev/null 2>&1); then
     echo "[$(date -u +%H:%M:%S)] Playwright not available in $PROJECT_NAME, running pnpm install..."
@@ -70,7 +88,15 @@ run_e2e() {
 
   echo "[$(date -u +%H:%M:%S)] Starting $PROJECT_NAME E2E tests..."
   (cd "$PROJECT_PATH" && bash -c "$E2E_COMMAND" > "$tmp" 2> "${tmp%.json}.stderr.log") || true
-  node "$SCRIPT_DIR/parse-pw-results.js" "$tmp" "$PROJECT_NAME" "$DATE" > "$out_file"
+
+  if [[ -d "$attachments_src" ]]; then
+    rm -rf "$attachments_out"
+    mkdir -p "$attachments_out"
+    cp -R "$attachments_src"/. "$attachments_out"/ 2>/dev/null || true
+    node "$SCRIPT_DIR/parse-pw-results.js" "$tmp" "$PROJECT_NAME" "$DATE" "$attachments_src" "$attachments_url" > "$out_file"
+  else
+    node "$SCRIPT_DIR/parse-pw-results.js" "$tmp" "$PROJECT_NAME" "$DATE" > "$out_file"
+  fi
   echo "[$(date -u +%H:%M:%S)] E2E results saved: $out_file"
 }
 
