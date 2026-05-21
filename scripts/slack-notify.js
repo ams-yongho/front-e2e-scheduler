@@ -88,23 +88,40 @@ function calculateSummary(projects, resultsByProject) {
   });
 }
 
-function buildProjectFields(projects, resultsByProject) {
+function buildIntegratedProjectFields(projects, e2eByProject, unitByProject, testsByProject) {
   const fields = [];
-
   for (const project of projects) {
-    const result = resultsByProject.get(project);
+    const registered = (testsByProject && testsByProject[project]) || [];
+    const e2e = e2eByProject.get(project);
+    const unit = unitByProject.get(project);
 
-    if (!result) {
-      fields.push(markdownText(`*❌ ${project}*`));
-      fields.push(markdownText('결과 없음'));
-      continue;
-    }
+    const e2eText = (() => {
+      if (!registered.includes('e2e')) return null;
+      if (!e2e) return '결과 없음';
+      return `${e2e.passed}/${e2e.total}`;
+    })();
+    const unitText = (() => {
+      if (!registered.includes('unit')) return '-';
+      if (!unit) return '결과 없음';
+      return `${unit.passed}/${unit.total}`;
+    })();
 
-    const statusIcon = result.status === 'passed' ? '✅' : '❌';
-    fields.push(markdownText(`*${statusIcon} ${project}*`));
-    fields.push(markdownText(`${result.passed}/${result.total} 통과 · 실패 ${result.failed}건 · ${result.duration}`));
+    const durationLabel = (() => {
+      const parts = [];
+      if (e2e) parts.push(e2e.duration);
+      if (unit) parts.push(unit.duration);
+      if (parts.length === 0) return '-';
+      return parts.join(' + ');
+    })();
+
+    const overallFail =
+      (registered.includes('e2e') && (!e2e || e2e.status === 'failed')) ||
+      (registered.includes('unit') && unit && unit.status === 'failed');
+    const overallIcon = overallFail ? '❌' : (registered.length === 0 ? '⚠' : '✅');
+
+    fields.push(markdownText(`*${overallIcon} ${project}*`));
+    fields.push(markdownText(`E2E ${e2eText ?? '-'} · Unit ${unitText} · ${durationLabel}`));
   }
-
   return fields;
 }
 
@@ -116,61 +133,60 @@ function chunkFields(fields, chunkSize) {
   return chunks;
 }
 
-function buildSummaryMessage({ date, projects, resultsByProject, dashboardUrl }) {
+function buildSummaryMessage({ date, projects, e2eByProject, unitByProject, testsByProject, dashboardUrl }) {
   const externalDashboardUrl = validateDashboardUrl(dashboardUrl);
-  const {
-    passedProjects,
-    passed,
-    total,
-    failed,
-    durationSeconds,
-  } = calculateSummary(projects, resultsByProject);
-  const summaryIcon = passedProjects === projects.length ? '✅' : '❌';
-  const statusText = summaryIcon === '✅' ? '*✅ 전체 통과*' : '*❌ 일부 실패*';
-  const summaryFields = [
-    markdownText(`*프로젝트 통과*\n${passedProjects} / ${projects.length}`),
-    markdownText(`*테스트 통과*\n${passed} / ${total}`),
-    markdownText(`*실패*\n${failed}건`),
-    markdownText(`*총 소요시간*\n${formatDurationSeconds(durationSeconds)}`),
+
+  const e2eEligible = projects.filter(p => (testsByProject?.[p] || ['e2e']).includes('e2e'));
+  const unitEligible = projects.filter(p => (testsByProject?.[p] || []).includes('unit'));
+
+  const e2eSummary = calculateSummary(e2eEligible, e2eByProject);
+  const unitSummary = calculateSummary(unitEligible, unitByProject);
+
+  const anyE2eFail = e2eEligible.some(p => {
+    const r = e2eByProject.get(p);
+    return !r || r.status === 'failed';
+  });
+  const anyUnitFail = unitEligible.some(p => {
+    const r = unitByProject.get(p);
+    return r && r.status === 'failed';
+  });
+  const allGood = !anyE2eFail && !anyUnitFail;
+  const summaryIcon = allGood ? '✅' : '❌';
+  const statusText = allGood ? '*✅ 전체 통과*' : '*❌ 일부 실패*';
+
+  const e2eFields = [
+    markdownText(`*E2E 프로젝트 통과*\n${e2eSummary.passedProjects} / ${e2eEligible.length}`),
+    markdownText(`*E2E 테스트 통과*\n${e2eSummary.passed} / ${e2eSummary.total}`),
+    markdownText(`*E2E 실패*\n${e2eSummary.failed}건`),
+    markdownText(`*E2E 소요시간*\n${formatDurationSeconds(e2eSummary.durationSeconds)}`),
   ];
-  const projectFields = buildProjectFields(projects, resultsByProject);
+  const unitFields = [
+    markdownText(`*Unit 프로젝트 통과*\n${unitSummary.passedProjects} / ${unitEligible.length}`),
+    markdownText(`*Unit 테스트 통과*\n${unitSummary.passed} / ${unitSummary.total}`),
+    markdownText(`*Unit 실패*\n${unitSummary.failed}건`),
+    markdownText(`*Unit 소요시간*\n${formatDurationSeconds(unitSummary.durationSeconds)}`),
+  ];
+
+  const projectFields = buildIntegratedProjectFields(projects, e2eByProject, unitByProject, testsByProject);
+
   const text = [
-    `[E2E 테스트 전체 결과] ${date}`,
-    `${summaryIcon} ${passedProjects}/${projects.length} 프로젝트 통과 | 총 ${passed}/${total} 통과 | 실패 ${failed}건`,
+    `[테스트 전체 결과] ${date}`,
+    `${summaryIcon} E2E ${e2eSummary.passed}/${e2eSummary.total} · Unit ${unitSummary.passed}/${unitSummary.total}`,
     `대시보드: ${externalDashboardUrl}`,
   ].join('\n');
+
   const blocks = [
-    {
-      type: 'header',
-      text: plainText(`E2E 테스트 전체 결과 · ${date}`),
-    },
-    {
-      type: 'section',
-      text: markdownText(statusText),
-    },
-    {
-      type: 'section',
-      fields: summaryFields,
-    },
-    {
-      type: 'divider',
-    },
-    ...chunkFields(projectFields, 10).map(fields => ({
-      type: 'section',
-      fields,
-    })),
-    {
-      type: 'divider',
-    },
+    { type: 'header', text: plainText(`테스트 전체 결과 · ${date}`) },
+    { type: 'section', text: markdownText(statusText) },
+    { type: 'section', fields: e2eFields },
+    { type: 'section', fields: unitFields },
+    { type: 'divider' },
+    ...chunkFields(projectFields, 10).map(fields => ({ type: 'section', fields })),
+    { type: 'divider' },
     {
       type: 'actions',
       elements: [
-        {
-          type: 'button',
-          text: plainText('대시보드 열기'),
-          url: externalDashboardUrl,
-          action_id: 'open_dashboard',
-        },
+        { type: 'button', text: plainText('대시보드 열기'), url: externalDashboardUrl, action_id: 'open_dashboard' },
       ],
     },
   ];
@@ -189,19 +205,19 @@ function readProjectNames(projectsDir) {
     .map(dir => readJson(path.join(projectsDir, dir, 'config.json')).name);
 }
 
-function readResultsByProject(projects, resultsDir, date) {
-  const resultsByProject = new Map();
+function readResultsByProject(projects, resultsDir, date, type) {
+  const map = new Map();
   for (const project of projects) {
-    const resultFile = path.join(resultsDir, project, `${date}.json`);
-    if (fs.existsSync(resultFile)) {
+    const file = path.join(resultsDir, project, type, `${date}.json`);
+    if (fs.existsSync(file)) {
       try {
-        resultsByProject.set(project, readJson(resultFile));
+        map.set(project, readJson(file));
       } catch (err) {
-        console.warn(`[WARN] Skipping unreadable result for ${project}: ${resultFile} (${err.message})`);
+        console.warn(`[WARN] Skipping unreadable ${type} result for ${project}: ${file} (${err.message})`);
       }
     }
   }
-  return resultsByProject;
+  return map;
 }
 
 function sendSlackMessage(webhookUrl, text) {
@@ -261,11 +277,27 @@ async function main(argv = process.argv.slice(2), env = process.env) {
       return;
     }
     const projects = readProjectNames(projectsDir);
-    const resultsByProject = readResultsByProject(projects, resultsDir, date);
+
+    const testsByProject = {};
+    for (const project of projects) {
+      const cfgPath = path.join(projectsDir, project, 'config.json');
+      let cfg = {};
+      try { cfg = readJson(cfgPath); } catch { /* ignore */ }
+      const types = [];
+      if (typeof cfg.e2e_command === 'string' && cfg.e2e_command.length > 0) types.push('e2e');
+      if (typeof cfg.unit_command === 'string' && cfg.unit_command.length > 0) types.push('unit');
+      testsByProject[project] = types;
+    }
+
+    const e2eByProject = readResultsByProject(projects, resultsDir, date, 'e2e');
+    const unitByProject = readResultsByProject(projects, resultsDir, date, 'unit');
+
     message = buildSummaryMessage({
       date,
       projects,
-      resultsByProject,
+      e2eByProject,
+      unitByProject,
+      testsByProject,
       dashboardUrl: env.DASHBOARD_URL,
     });
   } else {
