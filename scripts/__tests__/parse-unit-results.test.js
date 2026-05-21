@@ -122,12 +122,8 @@ const mixed = `> pnpm vitest run --reporter=json\n` +
 const parsedMixed = parseUnitOutputText(mixed, 'ca-admin');
 assert.strictEqual(parsedMixed.numTotalTests, 5);
 
-console.log('✅ parseUnitOutputText: mixed stdout with debug logs');
-
 // 완전히 깨진 입력 → throw
 assert.throws(() => parseUnitOutputText('not json at all', 'ca-admin'));
-
-console.log('✅ parseUnitOutputText: throws on completely invalid input');
 
 // CLI: 빈 파일 입력 시 exit code 2
 const { spawnSync } = require('child_process');
@@ -141,5 +137,5 @@ fs.rmSync(emptyFile, { force: true });
 assert.strictEqual(cli.status, 2, `CLI must exit 2 on empty input, got ${cli.status}\nstderr: ${cli.stderr}`);
 assert.ok(/Empty unit output/.test(cli.stderr));
 
-console.log('✅ parseUnitResults: CLI defensive empty input (exit 2)');
+console.log('✅ parseUnitResults: defensive empty + mixed stdout');
 
