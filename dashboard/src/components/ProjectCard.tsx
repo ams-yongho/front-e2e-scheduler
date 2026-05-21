@@ -6,17 +6,17 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import type { TestResult, UnitTestResult } from '../types';
-import type { RegisteredTypes } from '../App';
 import { Sparkline } from './Sparkline';
 import { BrowserMatrix } from './BrowserMatrix';
 import { FailureList } from './FailureList';
 import { FlakyList } from './FlakyList';
 import { SlowTestsList } from './SlowTestsList';
 import { HistoryTable } from './HistoryTable';
+import { UnitDetail } from './UnitDetail';
 
-type Props = {
+export type ProjectCardProps = {
   projectName: string;
-  registered: RegisteredTypes;
+  registered: ('e2e' | 'unit')[];
   e2eLatest: TestResult | null;
   e2eHistory: TestResult[];
   e2eTrend: number[];
@@ -24,7 +24,80 @@ type Props = {
   unitHistory: UnitTestResult[];
 };
 
-export function ProjectCard({ projectName, e2eLatest: latest, e2eHistory: history, e2eTrend: trend }: Props) {
+export function ProjectCard(props: ProjectCardProps) {
+  const { projectName, registered, e2eLatest, e2eHistory, e2eTrend, unitLatest, unitHistory } = props;
+  const defaultTab: 'e2e' | 'unit' = registered.includes('e2e') ? 'e2e' : 'unit';
+  const [tab, setTab] = useState<'e2e' | 'unit'>(defaultTab);
+
+  return (
+    <section style={{ border: '1px solid var(--border-subtle)', borderRadius: 8, background: 'var(--surface-1)' }}>
+      <header style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>{projectName}</h2>
+      </header>
+
+      <div role="tablist" style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)' }}>
+        <TabButton
+          active={tab === 'e2e'}
+          disabled={!registered.includes('e2e')}
+          onClick={() => setTab('e2e')}
+          label="E2E"
+        />
+        <TabButton
+          active={tab === 'unit'}
+          disabled={!registered.includes('unit')}
+          onClick={() => setTab('unit')}
+          label="Unit"
+        />
+      </div>
+
+      <div style={{ padding: 16 }}>
+        {tab === 'e2e' ? (
+          registered.includes('e2e')
+            ? <E2eDetail latest={e2eLatest} history={e2eHistory} trend={e2eTrend} />
+            : <NotRegistered label="E2E" />
+        ) : (
+          registered.includes('unit')
+            ? <UnitDetail latest={unitLatest} history={unitHistory} />
+            : <NotRegistered label="Unit" />
+        )}
+      </div>
+    </section>
+  );
+}
+
+function TabButton({ active, disabled, onClick, label }: { active: boolean; disabled: boolean; onClick(): void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        padding: '10px 14px',
+        background: active ? 'var(--surface-2)' : 'transparent',
+        border: 'none',
+        borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent',
+        color: disabled ? 'var(--text-faint)' : 'var(--text-primary)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        fontSize: 12,
+        fontWeight: 600,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function NotRegistered({ label }: { label: string }) {
+  return (
+    <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 13 }}>
+      이 프로젝트는 {label} 테스트가 등록되지 않았습니다.
+    </div>
+  );
+}
+
+function E2eDetail({ latest, history, trend }: { latest: TestResult | null; history: TestResult[]; trend: number[] }) {
   const passRate = latest && latest.total > 0 ? (latest.passed / latest.total) * 100 : 0;
   const passRateInt = Math.round(passRate);
   const statusKey: 'failed' | 'passed' | 'no-data' = !latest
@@ -45,7 +118,7 @@ export function ProjectCard({ projectName, e2eLatest: latest, e2eHistory: histor
         overflow: 'hidden',
       }}
     >
-      <CardHeader projectName={projectName} latest={latest} statusKey={statusKey} trend={trend} accent={accent} />
+      <E2eCardHeader latest={latest} statusKey={statusKey} trend={trend} accent={accent} />
 
       {latest && <Stats latest={latest} passRate={passRate} passRateInt={passRateInt} />}
 
@@ -74,14 +147,12 @@ export function ProjectCard({ projectName, e2eLatest: latest, e2eHistory: histor
   );
 }
 
-function CardHeader({
-  projectName,
+function E2eCardHeader({
   latest,
   statusKey,
   trend,
   accent,
 }: {
-  projectName: string;
   latest: TestResult | null;
   statusKey: 'failed' | 'passed' | 'no-data';
   trend: number[];
@@ -106,7 +177,6 @@ function CardHeader({
           gap: 10,
         }}
       >
-        {projectName}
         {latest && (
           <span
             style={{
