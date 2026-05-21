@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchManifest, fetchResult, last30Days } from './api';
+import { fetchManifest, fetchE2eResult, last30Days } from './api';
 import { ProjectGrid } from './components/ProjectGrid';
 import { ProjectCard } from './components/ProjectCard';
 import { computeTrend } from './lib/trend';
@@ -29,7 +29,7 @@ export default function App() {
         const projectData = await Promise.all(
           manifest.projects.map(async name => {
             const results = (
-              await Promise.all(days.map(date => fetchResult(name, date)))
+              await Promise.all(days.map(date => fetchE2eResult(name, date)))
             ).filter((r): r is TestResult => r !== null);
 
             return {
