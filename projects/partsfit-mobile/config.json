@@ -2,5 +2,6 @@
   "name": "partsfit-mobile",
   "path": "/Users/yonghokim/Documents/GitHub/amass/partsfit-mall-front/apps/mobile",
   "slack_channel": "#qa-alerts",
-  "e2e_command": "PLAYWRIGHT_TARGET=staging pnpm playwright test --reporter=json"
+  "e2e_command": "PLAYWRIGHT_TARGET=staging pnpm playwright test --reporter=json",
+  "unit_command": "pnpm vitest run --reporter=json"
 }
