@@ -10,8 +10,16 @@ type Props = {
 export function ProjectGrid({ projects, onSelect }: Props) {
   return (
     <div style={gridStyle}>
-      {projects.map(project => (
-        <ProjectTile key={project.name} project={project} onSelect={onSelect} />
+      {projects.map(p => (
+        <ProjectTile
+          key={p.name}
+          name={p.name}
+          registered={p.registered}
+          e2eLatest={p.e2eLatest}
+          e2eTrend={p.e2eTrend}
+          unitLatest={p.unitLatest}
+          onSelect={() => onSelect(p.name)}
+        />
       ))}
     </div>
   );

@@ -6,9 +6,12 @@ import type { ProjectData } from '../../App';
 
 const project: ProjectData = {
   name: 'biz-admin',
-  latest: null,
-  history: [],
-  trend: [],
+  registered: ['e2e'],
+  e2eLatest: null,
+  e2eHistory: [],
+  e2eTrend: [],
+  unitLatest: null,
+  unitHistory: [],
 };
 
 it('renders project tiles', () => {

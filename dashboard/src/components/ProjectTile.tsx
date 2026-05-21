@@ -1,20 +1,56 @@
 import type { CSSProperties } from 'react';
-import type { ProjectData } from '../App';
+import type { TestResult, UnitTestResult } from '../types';
 import { Sparkline } from './Sparkline';
 
-type Props = {
-  project: ProjectData;
-  onSelect: (projectName: string) => void;
+type ProjectTileProps = {
+  name: string;
+  registered: ('e2e' | 'unit')[];
+  e2eLatest: TestResult | null;
+  e2eTrend: number[];
+  unitLatest: UnitTestResult | null;
+  onSelect(): void;
 };
 
-export function ProjectTile({ project, onSelect }: Props) {
-  const latest = project.latest;
-  const statusKey: 'failed' | 'passed' | 'no-data' = !latest
-    ? 'no-data'
-    : latest.failed > 0
-      ? 'failed'
-      : 'passed';
-  const passRate = latest && latest.total > 0 ? Math.round((latest.passed / latest.total) * 100) : 0;
+function overallBadge(
+  registered: ('e2e' | 'unit')[],
+  e2eLatest: TestResult | null,
+  unitLatest: UnitTestResult | null,
+): 'passed' | 'failed' | 'no-data' {
+  const anyData = e2eLatest || unitLatest;
+  if (!anyData) return 'no-data';
+  const e2eFail = registered.includes('e2e') && (!e2eLatest || e2eLatest.failed > 0);
+  const unitFail = registered.includes('unit') && unitLatest && unitLatest.failed > 0;
+  return e2eFail || unitFail ? 'failed' : 'passed';
+}
+
+function TileStats({
+  passed,
+  total,
+  failed,
+  duration,
+  status,
+}: {
+  passed: number;
+  total: number;
+  failed: number;
+  duration: string;
+  status: 'passed' | 'failed';
+}) {
+  const passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
+  return (
+    <span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: 12 }}>
+      <span style={{ color: status === 'failed' ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
+        {passed}/{total}
+      </span>
+      <span style={{ color: 'var(--text-muted)' }}> · 실패 {failed}</span>
+      <span style={{ color: 'var(--text-muted)' }}> · {duration}</span>
+      <span style={{ marginLeft: 6, opacity: 0.6, color: 'var(--text-muted)' }}>({passRate}%)</span>
+    </span>
+  );
+}
+
+export function ProjectTile({ name, registered, e2eLatest, e2eTrend, unitLatest, onSelect }: ProjectTileProps) {
+  const statusKey = overallBadge(registered, e2eLatest, unitLatest);
   const accent =
     statusKey === 'failed' ? 'var(--danger)' : statusKey === 'passed' ? 'var(--success)' : 'var(--surface-4)';
   const badgeText = statusKey === 'failed' ? '실패' : statusKey === 'passed' ? '통과' : '데이터 없음';
@@ -23,11 +59,13 @@ export function ProjectTile({ project, onSelect }: Props) {
   const badgeFg =
     statusKey === 'failed' ? 'var(--danger)' : statusKey === 'passed' ? 'var(--success)' : 'var(--text-muted)';
 
+  const latestDate = e2eLatest?.date ?? unitLatest?.date ?? null;
+
   return (
     <button
       type="button"
-      aria-label={`${project.name} 프로젝트 상세 보기`}
-      onClick={() => onSelect(project.name)}
+      aria-label={`${name} 프로젝트 상세 보기`}
+      onClick={onSelect}
       style={{
         ...tileStyle,
         borderLeft: `2px solid ${accent}`,
@@ -37,58 +75,76 @@ export function ProjectTile({ project, onSelect }: Props) {
             : 'var(--surface-1)',
       }}
     >
-      <div style={nameStyle}>{project.name}</div>
-      <span style={{ ...badgeStyle, background: badgeBg, color: badgeFg }}>{badgeText}</span>
+      {/* Row 1: name + badge */}
+      <div style={headerRowStyle}>
+        <div style={nameStyle}>{name}</div>
+        <span style={{ ...badgeStyle, background: badgeBg, color: badgeFg }}>{badgeText}</span>
+      </div>
 
-      {latest ? (
-        <>
-          <div style={rateStyle}>
-            {passRate}
-            <span style={rateSubStyle}>% · {latest.passed}/{latest.total}</span>
+      {/* Row 2: E2E + sparkline */}
+      <div style={tileRowStyle}>
+        <div style={rowBodyStyle}>
+          <span style={rowLabelStyle}>E2E</span>
+          {registered.includes('e2e')
+            ? e2eLatest
+              ? (
+                <TileStats
+                  passed={e2eLatest.passed}
+                  total={e2eLatest.total}
+                  failed={e2eLatest.failed}
+                  duration={e2eLatest.duration}
+                  status={e2eLatest.status}
+                />
+              )
+              : <span style={emptyRowStyle}>결과 없음</span>
+            : <span style={emptyRowStyle}>등록 안 됨</span>}
+        </div>
+        {e2eTrend.length > 0 && (
+          <div style={sparklineWrapStyle}>
+            <Sparkline data={e2eTrend} accent={accent} />
+            <span style={sparklineLabelStyle}>최근 {e2eTrend.length}일</span>
           </div>
-          <div className="project-tile__sparkline" style={sparklineWrapStyle}>
-            <Sparkline data={project.trend} accent={accent} />
-            <span style={sparklineLabelStyle}>최근 {project.trend.length}일</span>
-          </div>
-          <div className="project-tile__meta" style={metaGridStyle}>
-            <Meta label="시간" value={latest.duration} />
-            <Meta label="실패" value={latest.failed} tone={latest.failed > 0 ? 'danger' : undefined} />
-            <Meta label="flaky" value={latest.flaky} tone={latest.flaky > 0 ? 'warning' : undefined} />
-            <Meta label="실행일" value={latest.date} />
-          </div>
-        </>
-      ) : (
-        <div style={emptyStyle}>결과 없음</div>
+        )}
+      </div>
+
+      {/* Row 3: Unit */}
+      <div style={tileRowStyle}>
+        <div style={rowBodyStyle}>
+          <span style={rowLabelStyle}>Unit</span>
+          {registered.includes('unit')
+            ? unitLatest
+              ? (
+                <TileStats
+                  passed={unitLatest.passed}
+                  total={unitLatest.total}
+                  failed={unitLatest.failed}
+                  duration={unitLatest.duration}
+                  status={unitLatest.status}
+                />
+              )
+              : <span style={emptyRowStyle}>결과 없음</span>
+            : <span style={emptyRowStyle}>등록 안 됨</span>}
+        </div>
+      </div>
+
+      {/* Row 4: meta footer */}
+      {latestDate && (
+        <div style={metaFooterStyle}>
+          <span style={{ color: 'var(--text-faint)', fontSize: 10.5 }}>실행일 </span>
+          <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums', fontSize: 10.5 }}>{latestDate}</span>
+          {e2eLatest && e2eLatest.flaky > 0 && (
+            <span style={{ marginLeft: 8, color: 'var(--warning)', fontSize: 10.5 }}>flaky {e2eLatest.flaky}</span>
+          )}
+        </div>
       )}
     </button>
   );
 }
 
-function Meta({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string | number;
-  tone?: 'danger' | 'warning';
-}) {
-  const color = tone === 'danger' ? 'var(--danger)' : tone === 'warning' ? 'var(--warning)' : 'var(--text-secondary)';
-
-  return (
-    <div style={metaStyle}>
-      <strong style={{ ...metaValueStyle, color }}>{value}</strong>
-      {label}
-    </div>
-  );
-}
-
 const tileStyle: CSSProperties = {
-  minHeight: 126,
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
-  gridTemplateRows: 'auto 1fr auto',
-  gap: '10px 14px',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
   border: '1px solid var(--border-subtle)',
   borderRadius: 8,
   padding: 14,
@@ -99,6 +155,13 @@ const tileStyle: CSSProperties = {
   transition: 'border-color 0.15s ease, transform 0.15s ease, background 0.15s ease',
 };
 
+const headerRowStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+};
+
 const nameStyle: CSSProperties = {
   color: 'var(--text-primary)',
   fontWeight: 650,
@@ -107,6 +170,8 @@ const nameStyle: CSSProperties = {
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   whiteSpace: 'nowrap',
+  flex: '1 1 0',
+  minWidth: 0,
 };
 
 const badgeStyle: CSSProperties = {
@@ -114,41 +179,51 @@ const badgeStyle: CSSProperties = {
   padding: '2px 8px',
   fontSize: 10.5,
   fontWeight: 600,
-  alignSelf: 'start',
+  flexShrink: 0,
   letterSpacing: '0.02em',
 };
 
-const rateStyle: CSSProperties = {
-  gridColumn: '1 / 2',
+const tileRowStyle: CSSProperties = {
   display: 'flex',
-  alignItems: 'baseline',
-  gap: 6,
-  color: 'var(--text-primary)',
-  fontFamily: 'var(--font-mono)',
-  fontVariantNumeric: 'tabular-nums',
-  fontSize: 28,
-  fontWeight: 500,
-  lineHeight: 1,
-  letterSpacing: '-0.02em',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  minHeight: 22,
 };
 
-const rateSubStyle: CSSProperties = {
-  color: 'var(--text-muted)',
-  fontSize: 12,
-  fontWeight: 400,
-  letterSpacing: 0,
+const rowBodyStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flex: '1 1 0',
+  minWidth: 0,
+  overflow: 'hidden',
+};
+
+const rowLabelStyle: CSSProperties = {
+  fontSize: 10,
+  fontWeight: 700,
+  color: 'var(--text-faint)',
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+  flexShrink: 0,
+  minWidth: 28,
+};
+
+const emptyRowStyle: CSSProperties = {
+  color: 'var(--text-faint)',
+  fontSize: 11.5,
 };
 
 const sparklineWrapStyle: CSSProperties = {
-  gridColumn: '2 / 3',
-  gridRow: '2 / 4',
-  width: 118,
-  minHeight: 62,
+  width: 100,
+  minHeight: 40,
   display: 'flex',
   flexDirection: 'column',
   alignItems: 'flex-end',
   justifyContent: 'center',
   gap: 3,
+  flexShrink: 0,
 };
 
 const sparklineLabelStyle: CSSProperties = {
@@ -157,34 +232,8 @@ const sparklineLabelStyle: CSSProperties = {
   color: 'var(--text-faint)',
 };
 
-const metaGridStyle: CSSProperties = {
-  gridColumn: '1 / 2',
-  display: 'grid',
-  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-  gap: 6,
-};
-
-const metaStyle: CSSProperties = {
-  minWidth: 0,
-  color: 'var(--text-muted)',
-  fontSize: 10.5,
-};
-
-const metaValueStyle: CSSProperties = {
-  display: 'block',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-  fontFamily: 'var(--font-mono)',
-  fontVariantNumeric: 'tabular-nums',
-  fontSize: 12,
-  fontWeight: 500,
-  letterSpacing: 0,
-};
-
-const emptyStyle: CSSProperties = {
-  gridColumn: '1 / 3',
-  alignSelf: 'center',
-  color: 'var(--text-faint)',
-  fontSize: 13,
+const metaFooterStyle: CSSProperties = {
+  borderTop: '1px solid var(--border-subtle)',
+  paddingTop: 6,
+  marginTop: 2,
 };

@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { ProjectCard } from '../ProjectCard';
-import type { TestResult } from '../../types';
+import type { TestResult, UnitTestResult } from '../../types';
 
 const failedResult: TestResult = {
   project: 'ca-admin',
@@ -41,14 +42,41 @@ const passedResult: TestResult = {
   flakyTests: [],
 };
 
+const unitResult: UnitTestResult = {
+  project: 'ca-admin',
+  type: 'unit',
+  date: '2026-05-09',
+  status: 'passed',
+  framework: 'vitest',
+  total: 50,
+  passed: 48,
+  failed: 2,
+  skipped: 0,
+  duration: '1분 10초',
+  failures: [
+    { test: '유닛 실패 테스트', file: 'unit.test.ts', line: 12, error: 'AssertionError' },
+  ],
+  slowTests: [],
+};
+
+const defaultProps = {
+  projectName: 'ca-admin',
+  registered: ['e2e'] as ('e2e' | 'unit')[],
+  e2eLatest: failedResult,
+  e2eHistory: [],
+  e2eTrend: [100, 95],
+  unitLatest: null,
+  unitHistory: [],
+};
+
 it('displays project name and status badge', () => {
-  render(<ProjectCard projectName="ca-admin" latest={failedResult} history={[]} trend={[100, 95]} />);
+  render(<ProjectCard {...defaultProps} />);
   expect(screen.getByText('ca-admin')).toBeInTheDocument();
   expect(screen.getByText('실패')).toBeInTheDocument();
 });
 
 it('shows pass rate, failed count, flaky count', () => {
-  render(<ProjectCard projectName="ca-admin" latest={failedResult} history={[]} trend={[100]} />);
+  render(<ProjectCard {...defaultProps} />);
   // 82/87 = 94.25 → rounded 94
   expect(screen.getByText('94')).toBeInTheDocument();
   expect(screen.getByText('% · 82/87')).toBeInTheDocument();
@@ -56,19 +84,40 @@ it('shows pass rate, failed count, flaky count', () => {
 });
 
 it('shows 통과 badge and hides failure section when passed', () => {
-  render(<ProjectCard projectName="ca-admin" latest={passedResult} history={[]} trend={[100]} />);
+  render(<ProjectCard {...defaultProps} e2eLatest={passedResult} />);
   expect(screen.getByText('통과')).toBeInTheDocument();
   expect(screen.queryByText('실패 상세')).not.toBeInTheDocument();
 });
 
-it('renders 데이터 없음 when latest is null', () => {
-  render(<ProjectCard projectName="ca-admin" latest={null} history={[]} trend={[]} />);
+it('renders 데이터 없음 when e2eLatest is null', () => {
+  render(<ProjectCard {...defaultProps} e2eLatest={null} e2eTrend={[]} />);
   expect(screen.getByText('데이터 없음')).toBeInTheDocument();
 });
 
 it('shows failure section, flaky section, slow section for failed result', () => {
-  render(<ProjectCard projectName="ca-admin" latest={failedResult} history={[]} trend={[100]} />);
+  render(<ProjectCard {...defaultProps} />);
   expect(screen.getByText('실패 상세')).toBeInTheDocument();
   expect(screen.getByText(/Flaky 테스트/)).toBeInTheDocument();
   expect(screen.getByText('가장 느린 테스트')).toBeInTheDocument();
+});
+
+it('Unit 탭이 등록된 경우 클릭하면 UnitDetail이 표시된다', async () => {
+  render(
+    <ProjectCard
+      {...defaultProps}
+      registered={['e2e', 'unit']}
+      unitLatest={unitResult}
+      unitHistory={[]}
+    />
+  );
+  const unitTab = screen.getByRole('tab', { name: 'Unit' });
+  await userEvent.click(unitTab);
+  expect(screen.getByText('48/50 통과')).toBeInTheDocument();
+  expect(screen.getByText('vitest')).toBeInTheDocument();
+});
+
+it('Unit 탭이 미등록인 경우 비활성화된다', () => {
+  render(<ProjectCard {...defaultProps} registered={['e2e']} />);
+  const unitTab = screen.getByRole('tab', { name: 'Unit' });
+  expect(unitTab).toBeDisabled();
 });

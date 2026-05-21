@@ -5,7 +5,8 @@
 Mac 호스트에서 cron을 통해 Playwright E2E 테스트를 주중 자동 실행하고, 결과를 JSON으로 저장하며, Slack으로 알림을 발송하는 스케줄러입니다. Docker nginx를 통해 팀 대시보드를 제공합니다.
 
 **동작 흐름:**
-- 주중 12:00 KST — cron → `scripts/run-all.sh` → 프로젝트별 결과 `results/[project]/YYYY-MM-DD.json` 저장 → `results/manifest.json` 업데이트 → Slack 전체 요약 알림 1회 전송
+
+- 주중 12:00 KST — cron → `scripts/run-all.sh` → 프로젝트별 결과 `results/[project]/{e2e,unit}/YYYY-MM-DD.json` 저장 → `results/manifest.json` 업데이트 → Slack 전체 요약 알림 1회 전송
 - Docker: nginx (포트 8080) → `dashboard/dist/` 빌드 결과 + `results/` 볼륨 마운트
 
 ---
@@ -33,6 +34,7 @@ DASHBOARD_URL=http://172.17.2.240:8080
 `projects/*/config.json`의 `path` 항목이 로컬 Mac에 체크아웃된 각 프론트엔드 앱의 실제 경로를 가리키는지 확인합니다.
 
 현재 등록된 프로젝트:
+
 - `biz-admin`
 - `biz-mall`
 - `ca-admin`
@@ -52,12 +54,16 @@ DASHBOARD_URL=http://172.17.2.240:8080
 {
   "name": "ca-admin",
   "path": "/Users/yonghokim/Documents/GitHub/amass/ca-front/apps/ca-admin",
-  "command": "pnpm playwright test --reporter=json",
+  "e2e_command": "pnpm playwright test --reporter=json",
+  "unit_command": "pnpm vitest run --reporter=json",
   "slack_channel": "#qa-alerts"
 }
 ```
 
-`scripts/run-project.sh`는 이 `command`를 그대로 실행합니다. 대시보드 결과 JSON 생성을 위해 Playwright 명령에는 `--reporter=json`을 포함해야 합니다.
+`scripts/run-project.sh`는 `e2e_command`와 `unit_command`를 각각 실행합니다.
+
+- `unit_command`가 없으면 해당 프로젝트는 유닛테스트가 skip된다. 대시보드와 Slack에는 `등록 안 됨`/`Unit -`로 표시된다.
+- `e2e_command`/`unit_command` 모두 JSON reporter 옵션(`--reporter=json` 등)을 포함해야 한다.
 
 ### 3) 대시보드 빌드
 
