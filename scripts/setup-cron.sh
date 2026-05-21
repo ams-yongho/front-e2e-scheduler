@@ -5,7 +5,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
 CRON_SCHEDULE="${CRON_SCHEDULE:-0 12 * * 1-5}"  # 기본값: 주중 12:00 KST
-CRON_TZ="TZ=Asia/Seoul"
+TZ_LINE="TZ=Asia/Seoul"
+
+# cron 기본 PATH는 /usr/bin:/bin이라 nvm/homebrew의 node, pnpm을 찾지 못한다.
+# 현재 shell에서 node 절대경로를 감지해서 PATH에 prepend한다.
+NODE_BIN="$(command -v node || true)"
+if [[ -z "$NODE_BIN" ]]; then
+  echo "[ERROR] node not found in PATH. Install node, then re-run." >&2
+  exit 1
+fi
+NODE_BIN_DIR="$(dirname "$NODE_BIN")"
+PATH_LINE="PATH=${NODE_BIN_DIR}:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
+
 CRON_CMD="$CRON_SCHEDULE /bin/bash $SCRIPT_DIR/run-all.sh >> $REPO_ROOT/logs/cron.log 2>&1"
 
 CURRENT="$(crontab -l 2>/dev/null || true)"
