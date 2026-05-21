@@ -1,6 +1,18 @@
 #!/usr/bin/env node
 'use strict';
 
+const path = require('path');
+
+function remapAttachmentUrl(attachmentPath, attachmentsBase, urlBase) {
+  if (!attachmentPath || !attachmentsBase || !urlBase) return undefined;
+  const absBase = path.resolve(attachmentsBase);
+  const absPath = path.resolve(attachmentPath);
+  const rel = path.relative(absBase, absPath);
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return undefined;
+  const relUrl = rel.split(path.sep).join('/');
+  return `${urlBase.replace(/\/+$/, '')}/${relUrl}`;
+}
+
 const BROWSER_META = {
   chromium: { name: 'Chromium', icon: 'CR' },
   webkit:   { name: 'WebKit',   icon: 'WK' },
@@ -34,7 +46,8 @@ function lastFailedStepIdx(steps) {
   return steps.length - 1;
 }
 
-function collectFailures(suites) {
+function collectFailures(suites, options = {}) {
+  const { attachmentsBase, urlBase } = options;
   const failures = [];
   for (const { suite, spec } of iterSpecs(suites)) {
     for (const test of spec.tests || []) {
@@ -49,10 +62,15 @@ function collectFailures(suites) {
         browser: test.projectName || '',
         steps,
         failedStepIdx: lastFailedStepIdx(failedResult.steps || []),
-        attachments: (failedResult.attachments || []).map(a => ({
-          name: a.name,
-          contentType: a.contentType || '',
-        })),
+        attachments: (failedResult.attachments || []).map(a => {
+          const att = {
+            name: a.name,
+            contentType: a.contentType || '',
+          };
+          const url = remapAttachmentUrl(a.path, attachmentsBase, urlBase);
+          if (url) att.url = url;
+          return att;
+        }),
       });
     }
   }
@@ -114,7 +132,7 @@ function collectBrowsers(raw) {
   return Object.values(counts);
 }
 
-function parsePlaywrightJSON(raw, projectName, date) {
+function parsePlaywrightJSON(raw, projectName, date, options = {}) {
   const stats = raw.stats || {};
   const expected = stats.expected || 0;
   const unexpected = stats.unexpected || 0;
@@ -132,7 +150,7 @@ function parsePlaywrightJSON(raw, projectName, date) {
     skipped,
     duration: formatDuration(stats.duration || 0),
     browsers: collectBrowsers(raw),
-    failures: collectFailures(raw.suites),
+    failures: collectFailures(raw.suites, options),
     flakyTests: collectFlakyTests(raw.suites),
     slowTests: collectSlowTests(raw.suites),
   };
@@ -165,7 +183,7 @@ function parsePlaywrightOutputText(text, projectName = 'unknown') {
 }
 
 if (require.main === module) {
-  const [,, pwOutputFile, projectName, date] = process.argv;
+  const [,, pwOutputFile, projectName, date, attachmentsBase, urlBase] = process.argv;
   const text = require('fs').readFileSync(pwOutputFile, 'utf8');
   if (text.trim() === '') {
     const stderrLog = pwOutputFile.replace(/\.json$/, '.stderr.log');
@@ -174,7 +192,8 @@ if (require.main === module) {
     process.exit(2);
   }
   const raw = parsePlaywrightOutputText(text, projectName);
-  console.log(JSON.stringify(parsePlaywrightJSON(raw, projectName, date), null, 2));
+  const options = (attachmentsBase && urlBase) ? { attachmentsBase, urlBase } : {};
+  console.log(JSON.stringify(parsePlaywrightJSON(raw, projectName, date, options), null, 2));
 }
 
 module.exports = { parsePlaywrightJSON, parsePlaywrightOutputText };

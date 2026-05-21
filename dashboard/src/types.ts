@@ -18,6 +18,7 @@ export interface BrowserStat {
 export interface Attachment {
   name: string;
   contentType: string;
+  url?: string;
 }
 
 export interface TestFailure {

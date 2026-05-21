@@ -13,7 +13,8 @@ type Props = {
 };
 
 const ERROR_SUMMARY_LIMIT = 140;
-const ANSI_ESCAPE_PATTERN = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+// eslint-disable-next-line no-control-regex
+const ANSI_ESCAPE_PATTERN = /\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
 
 export function FailureList({ failures }: Props) {
   if (failures.length === 0) return null;
@@ -38,6 +39,13 @@ function FailureItem({ failure: f }: { failure: TestFailure }) {
   const [open, setOpen] = useState(false);
   const summary = summarizeError(f.error);
   const attachmentSummary = formatAttachmentSummary(f.attachments);
+
+  const imagePreviews = f.attachments.filter(
+    (a) => a.url && a.contentType.startsWith('image/'),
+  );
+  const videoPreviews = f.attachments.filter(
+    (a) => a.url && a.contentType.startsWith('video/'),
+  );
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -117,8 +125,43 @@ function FailureItem({ failure: f }: { failure: TestFailure }) {
           <div style={{ borderTop: '1px solid rgba(229, 72, 77, 0.10)', padding: '0 14px 14px' }}>
             <StepTrail steps={f.steps} failedStepIdx={f.failedStepIdx} />
 
-            <div className="failure-detail-grid">
-              <ScreenshotPlaceholder />
+            <div
+              style={{
+                marginTop: 12,
+                marginLeft: 24,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              {imagePreviews.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {imagePreviews.map((a, i) => (
+                    <a
+                      key={`img-${i}`}
+                      href={a.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        display: 'block',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 5,
+                        overflow: 'hidden',
+                        background: '#000',
+                        lineHeight: 0,
+                      }}
+                    >
+                      <img
+                        src={a.url}
+                        alt={a.name}
+                        loading="lazy"
+                        style={{ maxWidth: 320, maxHeight: 200, display: 'block' }}
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
+
               <pre
                 style={{
                   fontFamily: 'var(--font-mono)',
@@ -139,6 +182,25 @@ function FailureItem({ failure: f }: { failure: TestFailure }) {
               >
                 {f.error}
               </pre>
+
+              {videoPreviews.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {videoPreviews.map((a, i) => (
+                    <video
+                      key={`vid-${i}`}
+                      controls
+                      preload="none"
+                      style={{
+                        maxWidth: 360,
+                        borderRadius: 5,
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <source src={a.url} type={a.contentType} />
+                    </video>
+                  ))}
+                </div>
+              )}
             </div>
 
             {f.attachments.length > 0 && (
@@ -152,21 +214,7 @@ function FailureItem({ failure: f }: { failure: TestFailure }) {
                 }}
               >
                 {f.attachments.map((a, i) => (
-                  <span
-                    key={`${a.name}:${i}`}
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 10.5,
-                      color: 'var(--accent-hover)',
-                      padding: '4px 9px',
-                      borderRadius: 4,
-                      background: 'rgba(94,106,210,0.08)',
-                      border: '1px solid rgba(94,106,210,0.14)',
-                      letterSpacing: 0,
-                    }}
-                  >
-                    {iconFor(a.name)} {a.name}
-                  </span>
+                  <AttachmentChip key={`${a.name}:${i}`} attachment={a} />
                 ))}
               </div>
             )}
@@ -175,6 +223,34 @@ function FailureItem({ failure: f }: { failure: TestFailure }) {
       </div>
     </Collapsible>
   );
+}
+
+function AttachmentChip({ attachment: a }: { attachment: Attachment }) {
+  const label = `${iconFor(a.name)} ${a.name}`;
+  const baseStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-mono)',
+    fontSize: 10.5,
+    color: 'var(--accent-hover)',
+    padding: '4px 9px',
+    borderRadius: 4,
+    background: 'rgba(94,106,210,0.08)',
+    border: '1px solid rgba(94,106,210,0.14)',
+    letterSpacing: 0,
+  };
+
+  if (a.url) {
+    return (
+      <a
+        href={a.url}
+        target="_blank"
+        rel="noreferrer"
+        style={{ ...baseStyle, textDecoration: 'none' }}
+      >
+        {label}
+      </a>
+    );
+  }
+  return <span style={baseStyle}>{label}</span>;
 }
 
 function Pill({ children, tone = 'default' }: { children: React.ReactNode; tone?: 'default' | 'accent' }) {
@@ -214,43 +290,8 @@ function formatAttachmentSummary(attachments: Attachment[]): string | null {
   return `첨부 ${attachments.length}개`;
 }
 
-function ScreenshotPlaceholder() {
-  return (
-    <div
-      style={{
-        borderRadius: 5,
-        background: [
-          'radial-gradient(at 30% 30%, rgba(94,106,210,0.15), transparent 60%)',
-          'radial-gradient(at 70% 70%, rgba(229,72,77,0.12), transparent 60%)',
-          'linear-gradient(135deg, #2a2b35 0%, #1a1b22 100%)',
-        ].join(', '),
-        border: '1px solid var(--border-subtle)',
-        position: 'relative',
-        overflow: 'hidden',
-        aspectRatio: '16 / 10',
-      }}
-    >
-      <span
-        style={{
-          position: 'absolute',
-          bottom: 6,
-          right: 8,
-          fontSize: 9,
-          color: 'var(--text-muted)',
-          fontFamily: 'var(--font-mono)',
-          background: 'rgba(0,0,0,0.55)',
-          padding: '1px 6px',
-          borderRadius: 3,
-          letterSpacing: 0,
-        }}
-      >
-        📷 screenshot
-      </span>
-    </div>
-  );
-}
-
 function iconFor(name: string): string {
+  if (name.includes('error-context')) return '📝';
   if (name.includes('screenshot') || name.includes('image')) return '📷';
   if (name.includes('video')) return '🎬';
   if (name.includes('trace')) return '🔍';

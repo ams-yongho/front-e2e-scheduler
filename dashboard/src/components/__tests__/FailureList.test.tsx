@@ -56,7 +56,7 @@ it('expands and collapses a failure detail when the summary row is clicked', asy
   expect(screen.getByText('navigate /cart')).toBeInTheDocument();
   expect(screen.getByText('✕ click submit')).toBeInTheDocument();
   expect(screen.getByText(/Locator: getByText/)).toBeInTheDocument();
-  expect(screen.getAllByText(/^📷 screenshot$/)).toHaveLength(2);
+  expect(screen.getByText(/^📷 screenshot$/)).toBeInTheDocument();
   expect(screen.getByText(/^🔍 trace$/)).toBeInTheDocument();
 
   await user.click(trigger);
@@ -97,4 +97,47 @@ it('removes ANSI control codes from the collapsed error summary', () => {
 it('renders nothing when failures is empty', () => {
   const { container } = render(<FailureList failures={[]} />);
   expect(container.firstChild).toBeNull();
+});
+
+it('renders real screenshot/video/error-context/trace when attachments have URLs', async () => {
+  const user = userEvent.setup();
+  const withUrls: TestFailure = {
+    ...failures[0],
+    attachments: [
+      { name: 'screenshot', contentType: 'image/png', url: '/results/proj/e2e/attachments/2026-05-21/case/shot.png' },
+      { name: 'video', contentType: 'video/webm', url: '/results/proj/e2e/attachments/2026-05-21/case/video.webm' },
+      { name: 'error-context', contentType: 'text/markdown', url: '/results/proj/e2e/attachments/2026-05-21/case/error-context.md' },
+      { name: 'trace', contentType: 'application/zip', url: '/results/proj/e2e/attachments/2026-05-21/case/trace.zip' },
+    ],
+  };
+
+  render(<FailureList failures={[withUrls]} />);
+  await user.click(screen.getByRole('button', { name: /결제 완료 플로우 실패 상세 펼치기/ }));
+
+  const img = screen.getByRole('img', { name: /screenshot/i }) as HTMLImageElement;
+  expect(img.getAttribute('src')).toBe('/results/proj/e2e/attachments/2026-05-21/case/shot.png');
+
+  const video = document.querySelector('video') as HTMLVideoElement | null;
+  expect(video).not.toBeNull();
+  expect(video!.querySelector('source')?.getAttribute('src')).toBe(
+    '/results/proj/e2e/attachments/2026-05-21/case/video.webm',
+  );
+
+  const ctxLink = screen.getByRole('link', { name: /error-context/i }) as HTMLAnchorElement;
+  expect(ctxLink.getAttribute('href')).toBe('/results/proj/e2e/attachments/2026-05-21/case/error-context.md');
+
+  const traceLink = screen.getByRole('link', { name: /trace/i }) as HTMLAnchorElement;
+  expect(traceLink.getAttribute('href')).toBe('/results/proj/e2e/attachments/2026-05-21/case/trace.zip');
+});
+
+it('falls back to plain chip when attachment has no URL', async () => {
+  const user = userEvent.setup();
+  render(<FailureList failures={failures} />);
+  await user.click(screen.getByRole('button', { name: /결제 완료 플로우 실패 상세 펼치기/ }));
+
+  expect(screen.queryByRole('img', { name: /screenshot/i })).not.toBeInTheDocument();
+  expect(document.querySelector('video')).toBeNull();
+  expect(screen.queryByRole('link', { name: /trace/i })).not.toBeInTheDocument();
+  expect(screen.getByText(/^📷 screenshot$/)).toBeInTheDocument();
+  expect(screen.getByText(/^🔍 trace$/)).toBeInTheDocument();
 });

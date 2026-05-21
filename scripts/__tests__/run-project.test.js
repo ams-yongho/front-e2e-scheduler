@@ -152,6 +152,108 @@ try {
     fs.rmSync(unitProjectDir, { recursive: true, force: true });
     fs.rmSync(unitResultDir, { recursive: true, force: true });
   }
+
+  // --- Attachments 수집 + 14일 보존 시나리오 ---
+  const attProjectName = '__tmp-attachments-test';
+  const attProjectDir = path.join(repoRoot, 'projects', attProjectName);
+  const attResultDir = path.join(repoRoot, 'results', attProjectName);
+  const attResultFile = path.join(attResultDir, 'e2e', `${today}.json`);
+  const attCopiedDir = path.join(attResultDir, 'e2e', 'attachments', today);
+  const attRecentKeep = path.join(attResultDir, 'e2e', 'attachments', '2099-01-01');
+  const attOldDir = path.join(attResultDir, 'e2e', 'attachments', '1970-01-01');
+
+  fs.rmSync(attProjectDir, { recursive: true, force: true });
+  fs.rmSync(attResultDir, { recursive: true, force: true });
+  fs.mkdirSync(attProjectDir, { recursive: true });
+
+  // seed retention fixtures: one old (must be purged), one recent (must survive)
+  fs.mkdirSync(attRecentKeep, { recursive: true });
+  fs.writeFileSync(path.join(attRecentKeep, 'keep.txt'), 'keep');
+  fs.mkdirSync(attOldDir, { recursive: true });
+  fs.writeFileSync(path.join(attOldDir, 'gone.txt'), 'gone');
+
+  const attFixtureDir = path.join(tmpDir, 'att-project');
+  fs.mkdirSync(attFixtureDir, { recursive: true });
+
+  // emitter creates Playwright-style test-results/ and prints JSON referencing those paths
+  const attEmitter = path.join(attFixtureDir, 'att-emitter.js');
+  const trBaseDir = path.join(attFixtureDir, 'test-results');
+  const trCaseDir = path.join(trBaseDir, 'login-fail-chromium');
+  fs.writeFileSync(
+    attEmitter,
+    [
+      'const fs = require("fs");',
+      'const path = require("path");',
+      `const trCaseDir = ${JSON.stringify(trCaseDir)};`,
+      'fs.rmSync(path.dirname(trCaseDir), { recursive: true, force: true });',
+      'fs.mkdirSync(trCaseDir, { recursive: true });',
+      'fs.writeFileSync(path.join(trCaseDir, "screenshot.png"), "fakepng");',
+      'fs.writeFileSync(path.join(trCaseDir, "video.webm"), "fakevid");',
+      'fs.writeFileSync(path.join(trCaseDir, "error-context.md"), "# ctx");',
+      'console.log(JSON.stringify({',
+      '  config: { projects: [{ name: "chromium" }] },',
+      '  suites: [{',
+      '    title: "login.spec.ts", file: "login.spec.ts",',
+      '    specs: [{ title: "fails", line: 1, tests: [{',
+      '      projectName: "chromium", status: "unexpected",',
+      '      results: [{ status: "failed", duration: 100, retry: 0, error: { message: "boom" },',
+      '        steps: [{ title: "click", error: { message: "boom" } }],',
+      '        attachments: [',
+      '          { name: "screenshot", contentType: "image/png", path: path.join(trCaseDir, "screenshot.png") },',
+      '          { name: "video", contentType: "video/webm", path: path.join(trCaseDir, "video.webm") },',
+      '          { name: "error-context", contentType: "text/markdown", path: path.join(trCaseDir, "error-context.md") },',
+      '        ],',
+      '      }] }],',
+      '    }], suites: [],',
+      '  }],',
+      '  stats: { duration: 100, expected: 0, unexpected: 1, flaky: 0, skipped: 0 },',
+      '}));',
+    ].join('\n'),
+    'utf8',
+  );
+
+  fs.writeFileSync(
+    path.join(attProjectDir, 'config.json'),
+    JSON.stringify({
+      name: attProjectName,
+      path: attFixtureDir,
+      e2e_command: `${process.execPath} ${attEmitter} --reporter=json`,
+      slack_channel: '#qa-alerts',
+    }, null, 2),
+    'utf8',
+  );
+
+  const attRun = spawnSync('bash', ['scripts/run-project.sh', attProjectName], {
+    cwd: repoRoot,
+    env: { ...process.env, PATH: `${fakeBinDir}${path.delimiter}${process.env.PATH}` },
+    encoding: 'utf8',
+  });
+
+  try {
+    assert.strictEqual(attRun.status, 0, `attachments run failed:\nstdout:\n${attRun.stdout}\nstderr:\n${attRun.stderr}`);
+    assert.ok(fs.existsSync(attResultFile), 'attachments result JSON should be written');
+
+    // 1. attachments copied into results/<proj>/e2e/attachments/<today>/
+    assert.ok(fs.existsSync(path.join(attCopiedDir, 'login-fail-chromium', 'screenshot.png')), 'screenshot copied');
+    assert.ok(fs.existsSync(path.join(attCopiedDir, 'login-fail-chromium', 'video.webm')), 'video copied');
+    assert.ok(fs.existsSync(path.join(attCopiedDir, 'login-fail-chromium', 'error-context.md')), 'error-context copied');
+
+    // 2. JSON has remapped URL (web-accessible under /results/)
+    const attResult = JSON.parse(fs.readFileSync(attResultFile, 'utf8'));
+    const urls = attResult.failures[0].attachments.map(a => a.url);
+    assert.strictEqual(urls[0], `/results/${attProjectName}/e2e/attachments/${today}/login-fail-chromium/screenshot.png`);
+    assert.strictEqual(urls[1], `/results/${attProjectName}/e2e/attachments/${today}/login-fail-chromium/video.webm`);
+    assert.strictEqual(urls[2], `/results/${attProjectName}/e2e/attachments/${today}/login-fail-chromium/error-context.md`);
+
+    // 3. 14-day retention: 1970 dir purged, 2099 dir kept
+    assert.ok(!fs.existsSync(attOldDir), 'attachment dir older than 14 days should be purged');
+    assert.ok(fs.existsSync(attRecentKeep), 'recent attachment dir should be kept');
+
+    console.log('✅ run-project attachments collection + 14-day retention');
+  } finally {
+    fs.rmSync(attProjectDir, { recursive: true, force: true });
+    fs.rmSync(attResultDir, { recursive: true, force: true });
+  }
 } finally {
   fs.rmSync(projectDir, { recursive: true, force: true });
   fs.rmSync(resultDir, { recursive: true, force: true });

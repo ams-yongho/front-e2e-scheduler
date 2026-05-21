@@ -125,6 +125,56 @@ assert.deepStrictEqual(
   ['screenshot', 'video', 'trace'],
   'attachment names preserved'
 );
+assert.deepStrictEqual(
+  result.failures[0].attachments.map(a => a.url ?? null),
+  [null, null, null],
+  'without options, attachments have no url'
+);
+
+// === Attachment URL 재매핑 (attachmentsBase / urlBase 옵션) ===
+const remappedInput = {
+  config: { projects: [{ name: 'chromium' }] },
+  suites: [{
+    title: 'login.spec.ts',
+    file: 'login.spec.ts',
+    specs: [{
+      title: '로그인 실패',
+      line: 12,
+      tests: [{
+        projectName: 'chromium',
+        status: 'unexpected',
+        results: [{
+          status: 'failed',
+          duration: 1000,
+          retry: 0,
+          error: { message: 'Boom' },
+          steps: [{ title: 'click', error: { message: 'Boom' } }],
+          attachments: [
+            { name: 'screenshot', contentType: 'image/png', path: '/work/test-results/login-fail/test-failed-1.png' },
+            { name: 'video',      contentType: 'video/webm', path: '/work/test-results/login-fail/video.webm' },
+            { name: 'error-context', contentType: 'text/markdown', path: '/work/test-results/login-fail/error-context.md' },
+            { name: 'trace',      contentType: 'application/zip', path: '/work/test-results/login-fail/trace.zip' },
+            { name: 'inline-only', contentType: 'text/plain', body: 'aGVsbG8=' },
+            { name: 'outside',    contentType: 'image/png', path: '/elsewhere/foo.png' },
+          ],
+        }],
+      }],
+    }],
+    suites: [],
+  }],
+  stats: { duration: 1000, expected: 0, unexpected: 1, flaky: 0, skipped: 0 },
+};
+const remapped = parsePlaywrightJSON(remappedInput, 'biz-admin', '2026-05-21', {
+  attachmentsBase: '/work/test-results',
+  urlBase: '/results/biz-admin/e2e/attachments/2026-05-21',
+});
+const remappedAtt = remapped.failures[0].attachments;
+assert.strictEqual(remappedAtt[0].url, '/results/biz-admin/e2e/attachments/2026-05-21/login-fail/test-failed-1.png', 'screenshot url remapped');
+assert.strictEqual(remappedAtt[1].url, '/results/biz-admin/e2e/attachments/2026-05-21/login-fail/video.webm', 'video url remapped');
+assert.strictEqual(remappedAtt[2].url, '/results/biz-admin/e2e/attachments/2026-05-21/login-fail/error-context.md', 'error-context url remapped');
+assert.strictEqual(remappedAtt[3].url, '/results/biz-admin/e2e/attachments/2026-05-21/login-fail/trace.zip', 'trace url remapped');
+assert.strictEqual(remappedAtt[4].url ?? null, null, 'inline-only attachment without path → no url');
+assert.strictEqual(remappedAtt[5].url ?? null, null, 'path outside attachmentsBase → no url');
 
 // === Browsers 매트릭스 ===
 assert.strictEqual(result.browsers.length, 3, '3 browsers');
