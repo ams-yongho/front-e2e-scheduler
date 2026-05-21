@@ -90,11 +90,11 @@ try {
   assert.ok(fs.existsSync(resultFile), 'result JSON should be written');
 
   const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
-  assert.strictEqual(result.status, 'passed', 'scheduler should use config.command, not projects/<name>/run.sh');
+  assert.strictEqual(result.status, 'passed', 'scheduler should use config.e2e_command, not projects/<name>/run.sh');
   assert.strictEqual(result.passed, 1);
   assert.strictEqual(result.failed, 0);
 
-  console.log('✅ run-project uses config.command');
+  console.log('✅ run-project uses config.e2e_command');
 
   // --- Unit 경로 시나리오 ---
   const unitProjectName = '__tmp-unit-test';

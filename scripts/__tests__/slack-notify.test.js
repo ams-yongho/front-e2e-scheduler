@@ -221,7 +221,7 @@ assert.ok(!readableResults.has('scm-front'), 'empty result should be skipped');
   assert.ok(summaryTexts.some(t => t.includes('Unit') && t.includes('프로젝트 통과')), 'missing Unit summary');
 
   // 프로젝트 줄에 두 타입 모두 표기
-  assert.ok(summaryTexts.some(t => t === 'E2E 19/21 · Unit 118/120 · 41초 + 12초'),
+  assert.ok(summaryTexts.some(t => t === 'E2E 19/21 · Unit 118/120 · 53초'),
     `ca-admin combined row missing. saw: ${summaryTexts.filter(t => t.startsWith('E2E')).join(' | ')}`);
 
   // typist는 unit 미등록 → Unit -

@@ -107,11 +107,11 @@ function buildIntegratedProjectFields(projects, e2eByProject, unitByProject, tes
     })();
 
     const durationLabel = (() => {
-      const parts = [];
-      if (e2e) parts.push(e2e.duration);
-      if (unit) parts.push(unit.duration);
-      if (parts.length === 0) return '-';
-      return parts.join(' + ');
+      const totalSec =
+        (e2e ? parseDurationSeconds(e2e.duration) : 0) +
+        (unit ? parseDurationSeconds(unit.duration) : 0);
+      if (!e2e && !unit) return '-';
+      return formatDurationSeconds(totalSec);
     })();
 
     const overallFail =
