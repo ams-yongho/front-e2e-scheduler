@@ -101,3 +101,18 @@ assert.strictEqual(failedResult.failures[0].line, 14);
 assert.ok(failedResult.failures[0].error.includes('Expected -1000원'));
 
 console.log('✅ parseUnitResults: jest failed fixture');
+
+// commandText 없이 raw 마커로 식별
+const vitestNoCmd = parseUnitResults(vitestPassedFixture, 'x', '2026-05-21');
+assert.strictEqual(vitestNoCmd.framework, 'vitest');
+
+const jestNoCmd = parseUnitResults(jestFailedFixture, 'x', '2026-05-21');
+assert.strictEqual(jestNoCmd.framework, 'jest');
+
+// 어느 마커도 없는 경우
+const ambiguous = parseUnitResults({ numTotalTests: 0, numPassedTests: 0, numFailedTests: 0, numPendingTests: 0, testResults: [] }, 'x', '2026-05-21');
+assert.strictEqual(ambiguous.framework, 'unknown');
+
+console.log('✅ parseUnitResults: framework auto-detect');
+
+
