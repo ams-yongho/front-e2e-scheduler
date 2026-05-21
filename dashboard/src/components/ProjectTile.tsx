@@ -8,7 +8,7 @@ type Props = {
 };
 
 export function ProjectTile({ project, onSelect }: Props) {
-  const latest = project.latest;
+  const latest = project.e2eLatest;
   const statusKey: 'failed' | 'passed' | 'no-data' = !latest
     ? 'no-data'
     : latest.failed > 0
@@ -47,8 +47,8 @@ export function ProjectTile({ project, onSelect }: Props) {
             <span style={rateSubStyle}>% · {latest.passed}/{latest.total}</span>
           </div>
           <div className="project-tile__sparkline" style={sparklineWrapStyle}>
-            <Sparkline data={project.trend} accent={accent} />
-            <span style={sparklineLabelStyle}>최근 {project.trend.length}일</span>
+            <Sparkline data={project.e2eTrend} accent={accent} />
+            <span style={sparklineLabelStyle}>최근 {project.e2eTrend.length}일</span>
           </div>
           <div className="project-tile__meta" style={metaGridStyle}>
             <Meta label="시간" value={latest.duration} />

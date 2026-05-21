@@ -5,7 +5,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import type { TestResult } from '../types';
+import type { TestResult, UnitTestResult } from '../types';
+import type { RegisteredTypes } from '../App';
 import { Sparkline } from './Sparkline';
 import { BrowserMatrix } from './BrowserMatrix';
 import { FailureList } from './FailureList';
@@ -15,12 +16,15 @@ import { HistoryTable } from './HistoryTable';
 
 type Props = {
   projectName: string;
-  latest: TestResult | null;
-  history: TestResult[];
-  trend: number[];
+  registered: RegisteredTypes;
+  e2eLatest: TestResult | null;
+  e2eHistory: TestResult[];
+  e2eTrend: number[];
+  unitLatest: UnitTestResult | null;
+  unitHistory: UnitTestResult[];
 };
 
-export function ProjectCard({ projectName, latest, history, trend }: Props) {
+export function ProjectCard({ projectName, e2eLatest: latest, e2eHistory: history, e2eTrend: trend }: Props) {
   const passRate = latest && latest.total > 0 ? (latest.passed / latest.total) * 100 : 0;
   const passRateInt = Math.round(passRate);
   const statusKey: 'failed' | 'passed' | 'no-data' = !latest
