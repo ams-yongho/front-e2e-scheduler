@@ -22,10 +22,11 @@ export type ProjectCardProps = {
   e2eTrend: number[];
   unitLatest: UnitTestResult | null;
   unitHistory: UnitTestResult[];
+  unitTrend: number[];
 };
 
 export function ProjectCard(props: ProjectCardProps) {
-  const { projectName, registered, e2eLatest, e2eHistory, e2eTrend, unitLatest, unitHistory } = props;
+  const { projectName, registered, e2eLatest, e2eHistory, e2eTrend, unitLatest, unitHistory, unitTrend } = props;
   const defaultTab: 'e2e' | 'unit' = registered.includes('e2e') ? 'e2e' : 'unit';
   const [tab, setTab] = useState<'e2e' | 'unit'>(defaultTab);
 
@@ -57,7 +58,7 @@ export function ProjectCard(props: ProjectCardProps) {
             : <NotRegistered label="E2E" />
         ) : (
           registered.includes('unit')
-            ? <UnitDetail latest={unitLatest} history={unitHistory} />
+            ? <UnitDetail latest={unitLatest} history={unitHistory} unitTrend={unitTrend} />
             : <NotRegistered label="Unit" />
         )}
       </div>
