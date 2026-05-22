@@ -67,6 +67,7 @@ const defaultProps = {
   e2eTrend: [100, 95],
   unitLatest: null,
   unitHistory: [],
+  unitTrend: [],
 };
 
 it('displays project name and status badge', () => {

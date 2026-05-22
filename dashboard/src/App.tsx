@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchManifest, fetchE2eResult, fetchUnitResult, last30Days } from './api';
 import { ProjectGrid } from './components/ProjectGrid';
 import { ProjectCard } from './components/ProjectCard';
-import { computeTrend } from './lib/trend';
+import { computeTrend, computeUnitTrend } from './lib/trend';
 import type { TestResult, UnitTestResult } from './types';
 
 export type RegisteredTypes = ('e2e' | 'unit')[];
@@ -15,6 +15,7 @@ export type ProjectData = {
   e2eTrend: number[];
   unitLatest: UnitTestResult | null;
   unitHistory: UnitTestResult[];
+  unitTrend: number[];
 };
 
 export default function App() {
@@ -54,6 +55,7 @@ export default function App() {
               e2eTrend: computeTrend(e2eResults),
               unitLatest: unitResults[0] ?? null,
               unitHistory: unitResults,
+              unitTrend: computeUnitTrend(unitResults),
             };
           })
         );
@@ -167,6 +169,7 @@ export default function App() {
               e2eTrend={selectedProject.e2eTrend}
               unitLatest={selectedProject.unitLatest}
               unitHistory={selectedProject.unitHistory}
+              unitTrend={selectedProject.unitTrend}
             />
           </>
         ) : (
