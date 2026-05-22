@@ -112,7 +112,7 @@ it('Unit 탭이 등록된 경우 클릭하면 UnitDetail이 표시된다', async
   );
   const unitTab = screen.getByRole('tab', { name: 'Unit' });
   await userEvent.click(unitTab);
-  expect(screen.getByText('48/50 통과')).toBeInTheDocument();
+  expect(screen.getByText('% · 48/50')).toBeInTheDocument();
   expect(screen.getByText('vitest')).toBeInTheDocument();
 });
 
