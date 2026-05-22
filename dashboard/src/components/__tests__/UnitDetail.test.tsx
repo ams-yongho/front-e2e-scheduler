@@ -71,3 +71,8 @@ it('renders sparkline SVG when unitTrend has data', () => {
   const { container } = render(<UnitDetail latest={mkUnit()} history={[]} unitTrend={[90, 95, 100]} />);
   expect(container.querySelector('svg')).toBeInTheDocument();
 });
+
+it('does not render sparkline when unitTrend is empty', () => {
+  const { container } = render(<UnitDetail latest={mkUnit()} history={[]} unitTrend={[]} />);
+  expect(container.querySelector('svg')).toBeNull();
+});
