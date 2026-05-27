@@ -19,7 +19,7 @@ function overallBadge(
   const anyData = e2eLatest || unitLatest;
   if (!anyData) return 'no-data';
   const e2eFail = registered.includes('e2e') && (!e2eLatest || e2eLatest.failed > 0);
-  const unitFail = registered.includes('unit') && unitLatest && unitLatest.status !== 'passed';
+  const unitFail = registered.includes('unit') && (!unitLatest || unitLatest.status !== 'passed');
   return e2eFail || unitFail ? 'failed' : 'passed';
 }
 

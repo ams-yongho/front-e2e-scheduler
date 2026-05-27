@@ -13,6 +13,7 @@ run_with_timeout() {
     perl -e '
       my $s = shift @ARGV;
       my $pid = fork();
+      die "fork failed: $!" unless defined $pid;
       if ($pid == 0) { exec @ARGV or exit 127; }
       my $timed_out = 0;
       local $SIG{ALRM} = sub {

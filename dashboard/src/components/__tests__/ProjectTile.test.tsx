@@ -48,6 +48,36 @@ describe('ProjectTile unit 상태', () => {
     expect(screen.getByText('통과')).toBeInTheDocument();
     expect(screen.getByText('5/5')).toBeInTheDocument();
   });
+
+  it('e2e는 통과했지만 등록된 unit 결과가 없으면 실패 배지', () => {
+    const passingE2e: TestResult = {
+      project: 'biz-mall',
+      date: '2026-05-27',
+      status: 'passed',
+      total: 10,
+      passed: 10,
+      failed: 0,
+      flaky: 0,
+      skipped: 0,
+      duration: '5초',
+      browsers: [],
+      failures: [],
+      flakyTests: [],
+      slowTests: [],
+    };
+    render(
+      <ProjectTile
+        name="biz-mall"
+        registered={['e2e', 'unit']}
+        e2eLatest={passingE2e}
+        e2eTrend={[]}
+        unitLatest={null}
+        onSelect={vi.fn()}
+      />,
+    );
+    // 등록된 unit 결과가 없으면 Slack 과 동일하게 실패로 표시되어야 한다
+    expect(screen.getByText('실패')).toBeInTheDocument();
+  });
 });
 
 const baseResult: TestResult = {
