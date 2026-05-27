@@ -76,3 +76,21 @@ it('does not render sparkline when unitTrend is empty', () => {
   const { container } = render(<UnitDetail latest={mkUnit()} history={[]} unitTrend={[]} />);
   expect(container.querySelector('svg')).toBeNull();
 });
+
+it('status가 error면 수집 실패 배지와 사유를 보여준다', () => {
+  const errored = {
+    project: 'biz-mall',
+    type: 'unit' as const,
+    date: '2026-05-27',
+    status: 'error' as const,
+    error: '유닛 실행 타임아웃 (>600초).',
+    framework: 'unknown' as const,
+    total: 0, passed: 0, failed: 0, skipped: 0,
+    duration: '-',
+    failures: [],
+    slowTests: [],
+  };
+  render(<UnitDetail latest={errored} history={[]} />);
+  expect(screen.getByText('수집 실패')).toBeInTheDocument();
+  expect(screen.getByText(/타임아웃/)).toBeInTheDocument();
+});

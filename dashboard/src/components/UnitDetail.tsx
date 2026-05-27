@@ -25,6 +25,37 @@ export function UnitDetail({ latest, history, unitTrend = [] }: Props) {
     );
   }
 
+  if (latest.status === 'error') {
+    return (
+      <article
+        style={{
+          background: 'var(--surface-1)',
+          border: '1px solid var(--border-subtle)',
+          borderLeft: '2px solid var(--danger)',
+          borderRadius: 10,
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 22px 4px' }}>
+          <div style={{ flex: 1, fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
+            · {latest.date}
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 999, background: 'var(--danger-muted)', color: 'var(--danger)' }}>
+            수집 실패
+          </span>
+        </div>
+        <div style={{ padding: '8px 22px 18px', color: 'var(--text-secondary)', fontSize: 13 }}>
+          유닛테스트 결과를 수집하지 못했습니다.
+          {latest.error && (
+            <pre style={{ marginTop: 8, whiteSpace: 'pre-wrap', color: 'var(--text-muted)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+              {latest.error}
+            </pre>
+          )}
+        </div>
+      </article>
+    );
+  }
+
   const passRate = latest.total > 0 ? (latest.passed / latest.total) * 100 : 0;
   const passRateInt = Math.round(passRate);
   const statusKey: 'failed' | 'passed' = latest.failed > 0 ? 'failed' : 'passed';

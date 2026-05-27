@@ -1,6 +1,54 @@
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { ProjectTile } from '../ProjectTile';
-import type { TestResult } from '../../types';
+import type { TestResult, UnitTestResult } from '../../types';
+
+const baseUnit: UnitTestResult = {
+  project: 'biz-mall',
+  type: 'unit',
+  date: '2026-05-27',
+  status: 'passed',
+  framework: 'vitest',
+  total: 5,
+  passed: 5,
+  failed: 0,
+  skipped: 0,
+  duration: '3초',
+  failures: [],
+  slowTests: [],
+};
+
+describe('ProjectTile unit 상태', () => {
+  it('unit status가 error면 수집 실패 + 실패 배지', () => {
+    render(
+      <ProjectTile
+        name="biz-mall"
+        registered={['unit']}
+        e2eLatest={null}
+        e2eTrend={[]}
+        unitLatest={{ ...baseUnit, status: 'error', error: 'timeout', passed: 0, total: 0, duration: '-' }}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('수집 실패')).toBeInTheDocument();
+    expect(screen.getByText('실패')).toBeInTheDocument();
+  });
+
+  it('unit이 통과면 통과 배지와 5/5', () => {
+    render(
+      <ProjectTile
+        name="biz-mall"
+        registered={['unit']}
+        e2eLatest={null}
+        e2eTrend={[]}
+        unitLatest={baseUnit}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('통과')).toBeInTheDocument();
+    expect(screen.getByText('5/5')).toBeInTheDocument();
+  });
+});
 
 const baseResult: TestResult = {
   project: 'biz-admin',
