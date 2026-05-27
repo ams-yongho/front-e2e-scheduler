@@ -1,6 +1,34 @@
 #!/bin/bash
 set -euo pipefail
 
+# Portable timeout: run_with_timeout <seconds> <command...>
+# timeout(GNU) / gtimeout(coreutils) / perl 폴백 순으로 사용. 타임아웃 시 exit code 124.
+run_with_timeout() {
+  local secs="$1"; shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$secs" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$secs" "$@"
+  else
+    perl -e '
+      my $s = shift @ARGV;
+      my $pid = fork();
+      if ($pid == 0) { exec @ARGV or exit 127; }
+      my $timed_out = 0;
+      local $SIG{ALRM} = sub {
+        $timed_out = 1;
+        kill "TERM", $pid;
+        sleep 5;
+        kill(0, $pid) and kill("KILL", $pid);  # escalate if still alive
+      };
+      alarm $s;
+      waitpid($pid, 0);
+      alarm 0;
+      exit($timed_out ? 124 : ($? >> 8));
+    ' "$secs" "$@"
+  fi
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
@@ -94,8 +122,10 @@ run_e2e() {
   (cd "$PROJECT_PATH" && pnpm exec playwright install chromium) \
     || echo "[WARN] playwright install chromium failed for $PROJECT_NAME, continuing..."
 
-  echo "[$(date -u +%H:%M:%S)] Starting $PROJECT_NAME E2E tests..."
-  (cd "$PROJECT_PATH" && bash -c "$E2E_COMMAND" > "$tmp" 2> "${tmp%.json}.stderr.log") || true
+  local e2e_timeout_secs
+  e2e_timeout_secs=$(node -p "require('$PROJECT_CONFIG').e2e_timeout_seconds || 1800")
+  echo "[$(date -u +%H:%M:%S)] Starting $PROJECT_NAME E2E tests (timeout ${e2e_timeout_secs}s)..."
+  (cd "$PROJECT_PATH" && run_with_timeout "$e2e_timeout_secs" bash -c "$E2E_COMMAND" > "$tmp" 2> "${tmp%.json}.stderr.log") || true
 
   if [[ -d "$attachments_src" ]]; then
     rm -rf "$attachments_out"
@@ -118,8 +148,11 @@ run_unit() {
   local tmp="/tmp/unit-${PROJECT_NAME}-${DATE}.json"
   mkdir -p "$out_dir"
 
-  echo "[$(date -u +%H:%M:%S)] Starting $PROJECT_NAME unit tests..."
-  (cd "$PROJECT_PATH" && bash -c "$UNIT_COMMAND" > "$tmp" 2> "${tmp%.json}.stderr.log") || true
+  local timeout_secs
+  timeout_secs=$(node -p "require('$PROJECT_CONFIG').unit_timeout_seconds || 600")
+  echo "[$(date -u +%H:%M:%S)] Starting $PROJECT_NAME unit tests (timeout ${timeout_secs}s)..."
+  UNIT_RC=0
+  (cd "$PROJECT_PATH" && run_with_timeout "$timeout_secs" bash -c "$UNIT_COMMAND" > "$tmp" 2> "${tmp%.json}.stderr.log") || UNIT_RC=$?
   node "$SCRIPT_DIR/parse-unit-results.js" "$tmp" "$PROJECT_NAME" "$DATE" "$UNIT_COMMAND" > "$out_file" || {
     echo "[WARN] $PROJECT_NAME unit parse failed; removing partial output."
     rm -f "$out_file"
