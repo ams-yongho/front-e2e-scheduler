@@ -86,6 +86,14 @@ run_e2e() {
     (cd "$PROJECT_PATH" && pnpm install)
   fi
 
+  # 브라우저 바이너리 보장: Playwright 버전이 올라가면 새 Chromium 리비전이 필요한데
+  # `pnpm install`로는 다운로드되지 않아 모든 테스트가 launch 단계에서 실패한다.
+  # 이미 받은 리비전은 재다운로드하지 않으므로 매 실행마다 호출해도 거의 비용이 없다.
+  # (모든 프로젝트가 chromium 엔진만 사용)
+  echo "[$(date -u +%H:%M:%S)] Ensuring Chromium binary for $PROJECT_NAME..."
+  (cd "$PROJECT_PATH" && pnpm exec playwright install chromium) \
+    || echo "[WARN] playwright install chromium failed for $PROJECT_NAME, continuing..."
+
   echo "[$(date -u +%H:%M:%S)] Starting $PROJECT_NAME E2E tests..."
   (cd "$PROJECT_PATH" && bash -c "$E2E_COMMAND" > "$tmp" 2> "${tmp%.json}.stderr.log") || true
 
