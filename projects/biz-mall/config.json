@@ -3,5 +3,5 @@
   "path": "/Users/yonghokim/Documents/GitHub/amass/biz-mall-front/apps/biz-mall",
   "slack_channel": "#qa-alerts",
   "e2e_command": "pnpm playwright test --reporter=json",
-  "unit_command": "pnpm vitest run --reporter=json"
+  "unit_command": "NODE_OPTIONS=--max-old-space-size=8192 pnpm vitest run --config vitest.ci.config.ts --reporter=json"
 }
