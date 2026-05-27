@@ -1,6 +1,84 @@
 import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { ProjectTile } from '../ProjectTile';
-import type { TestResult } from '../../types';
+import type { TestResult, UnitTestResult } from '../../types';
+
+const baseUnit: UnitTestResult = {
+  project: 'biz-mall',
+  type: 'unit',
+  date: '2026-05-27',
+  status: 'passed',
+  framework: 'vitest',
+  total: 5,
+  passed: 5,
+  failed: 0,
+  skipped: 0,
+  duration: '3초',
+  failures: [],
+  slowTests: [],
+};
+
+describe('ProjectTile unit 상태', () => {
+  it('unit status가 error면 수집 실패 + 실패 배지', () => {
+    render(
+      <ProjectTile
+        name="biz-mall"
+        registered={['unit']}
+        e2eLatest={null}
+        e2eTrend={[]}
+        unitLatest={{ ...baseUnit, status: 'error', error: 'timeout', passed: 0, total: 0, duration: '-' }}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('수집 실패')).toBeInTheDocument();
+    expect(screen.getByText('실패')).toBeInTheDocument();
+  });
+
+  it('unit이 통과면 통과 배지와 5/5', () => {
+    render(
+      <ProjectTile
+        name="biz-mall"
+        registered={['unit']}
+        e2eLatest={null}
+        e2eTrend={[]}
+        unitLatest={baseUnit}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('통과')).toBeInTheDocument();
+    expect(screen.getByText('5/5')).toBeInTheDocument();
+  });
+
+  it('e2e는 통과했지만 등록된 unit 결과가 없으면 실패 배지', () => {
+    const passingE2e: TestResult = {
+      project: 'biz-mall',
+      date: '2026-05-27',
+      status: 'passed',
+      total: 10,
+      passed: 10,
+      failed: 0,
+      flaky: 0,
+      skipped: 0,
+      duration: '5초',
+      browsers: [],
+      failures: [],
+      flakyTests: [],
+      slowTests: [],
+    };
+    render(
+      <ProjectTile
+        name="biz-mall"
+        registered={['e2e', 'unit']}
+        e2eLatest={passingE2e}
+        e2eTrend={[]}
+        unitLatest={null}
+        onSelect={vi.fn()}
+      />,
+    );
+    // 등록된 unit 결과가 없으면 Slack 과 동일하게 실패로 표시되어야 한다
+    expect(screen.getByText('실패')).toBeInTheDocument();
+  });
+});
 
 const baseResult: TestResult = {
   project: 'biz-admin',

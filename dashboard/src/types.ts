@@ -73,7 +73,8 @@ export interface UnitTestResult {
   project: string;
   type: 'unit';
   date: string;
-  status: 'passed' | 'failed';
+  status: 'passed' | 'failed' | 'error';
+  error?: string;
   framework: 'vitest' | 'jest' | 'unknown';
   total: number;
   passed: number;

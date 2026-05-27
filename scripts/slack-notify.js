@@ -103,6 +103,7 @@ function buildIntegratedProjectFields(projects, e2eByProject, unitByProject, tes
     const unitText = (() => {
       if (!registered.includes('unit')) return '-';
       if (!unit) return '결과 없음';
+      if (unit.status === 'error') return '수집 실패';
       return `${unit.passed}/${unit.total}`;
     })();
 
@@ -116,7 +117,7 @@ function buildIntegratedProjectFields(projects, e2eByProject, unitByProject, tes
 
     const overallFail =
       (registered.includes('e2e') && (!e2e || e2e.status === 'failed')) ||
-      (registered.includes('unit') && unit && unit.status === 'failed');
+      (registered.includes('unit') && (!unit || unit.status !== 'passed'));
     const overallIcon = overallFail ? '❌' : (registered.length === 0 ? '⚠' : '✅');
 
     fields.push(markdownText(`*${overallIcon} ${project}*`));
@@ -148,7 +149,7 @@ function buildSummaryMessage({ date, projects, e2eByProject, unitByProject, test
   });
   const anyUnitFail = unitEligible.some(p => {
     const r = unitByProject.get(p);
-    return r && r.status === 'failed';
+    return !r || r.status !== 'passed';
   });
   const allGood = !anyE2eFail && !anyUnitFail;
   const summaryIcon = allGood ? '✅' : '❌';
