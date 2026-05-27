@@ -234,3 +234,31 @@ assert.ok(!readableResults.has('scm-front'), 'empty result should be skipped');
 
   console.log('✅ buildSummaryMessage: integrated e2e+unit');
 }
+
+// --- 등록된 unit 인데 error/미수집이면 ❌ 로 집계 ---
+{
+  const { buildSummaryMessage } = require('../slack-notify');
+  const projects = ['biz-mall'];
+  const testsByProject = { 'biz-mall': ['unit'] };
+  const e2eByProject = new Map();
+
+  // (a) error 상태 결과
+  const unitErr = new Map([['biz-mall', { project: 'biz-mall', type: 'unit', status: 'error', error: 'timeout', total: 0, passed: 0, failed: 0, duration: '-' }]]);
+  const msgErr = buildSummaryMessage({
+    date: '2026-05-27', projects, e2eByProject, unitByProject: unitErr,
+    testsByProject, dashboardUrl: 'https://dash.example.com',
+  });
+  const flatErr = JSON.stringify(msgErr.blocks);
+  assert.ok(/일부 실패/.test(flatErr), 'error 결과는 전체 상태를 실패로 만들어야 함');
+  assert.ok(/수집 실패/.test(flatErr), '프로젝트 줄에 수집 실패 표시가 있어야 함');
+
+  // (b) 결과 자체가 없는 경우(미수집)도 실패로 집계
+  const unitMissing = new Map();
+  const msgMissing = buildSummaryMessage({
+    date: '2026-05-27', projects, e2eByProject, unitByProject: unitMissing,
+    testsByProject, dashboardUrl: 'https://dash.example.com',
+  });
+  assert.ok(/일부 실패/.test(JSON.stringify(msgMissing.blocks)), '미수집 unit 도 실패로 집계해야 함');
+
+  console.log('✅ slack summary: unit error/missing counts as failure');
+}
