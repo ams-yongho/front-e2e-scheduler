@@ -254,6 +254,48 @@ try {
     fs.rmSync(attProjectDir, { recursive: true, force: true });
     fs.rmSync(attResultDir, { recursive: true, force: true });
   }
+  // --- Unit 실패(빈 출력) → error 결과 파일 시나리오 ---
+  const errProjectName = '__tmp-unit-error-test';
+  const errProjectDir = path.join(repoRoot, 'projects', errProjectName);
+  const errResultDir = path.join(repoRoot, 'results', errProjectName);
+  const errResultFile = path.join(errResultDir, 'unit', `${today}.json`);
+
+  fs.rmSync(errProjectDir, { recursive: true, force: true });
+  fs.rmSync(errResultDir, { recursive: true, force: true });
+  fs.mkdirSync(errProjectDir, { recursive: true });
+
+  fs.writeFileSync(
+    path.join(errProjectDir, 'config.json'),
+    JSON.stringify({
+      name: errProjectName,
+      path: fixtureProjectDir,
+      e2e_command: '',
+      // stdout 에 아무것도 안 내고 종료 → 빈 출력 → 파서 exit 2
+      unit_command: `${process.execPath} -e "process.exit(1)"`,
+      slack_channel: '#qa-alerts',
+    }, null, 2),
+    'utf8'
+  );
+
+  const errRun = spawnSync('bash', ['scripts/run-project.sh', errProjectName], {
+    cwd: repoRoot,
+    env: { ...process.env, PATH: `${fakeBinDir}${path.delimiter}${process.env.PATH}` },
+    encoding: 'utf8',
+  });
+
+  try {
+    assert.strictEqual(errRun.status, 0, `error run should still exit 0 (run-all 계속 진행):\n${errRun.stderr}`);
+    assert.ok(fs.existsSync(errResultFile), `error 결과 파일이 있어야 함: ${errResultFile}`);
+    const errResult = JSON.parse(fs.readFileSync(errResultFile, 'utf8'));
+    assert.strictEqual(errResult.type, 'unit');
+    assert.strictEqual(errResult.status, 'error');
+    assert.ok(typeof errResult.error === 'string' && errResult.error.length > 0, 'error 사유 문자열이 있어야 함');
+    assert.deepStrictEqual(errResult.failures, []);
+    console.log('✅ run-project unit error → error-status result file');
+  } finally {
+    fs.rmSync(errProjectDir, { recursive: true, force: true });
+    fs.rmSync(errResultDir, { recursive: true, force: true });
+  }
 } finally {
   fs.rmSync(projectDir, { recursive: true, force: true });
   fs.rmSync(resultDir, { recursive: true, force: true });

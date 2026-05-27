@@ -29,6 +29,28 @@ run_with_timeout() {
   fi
 }
 
+# write_unit_error <out_file> <reason>
+write_unit_error() {
+  local out_file="$1"; local reason="$2"
+  ERR_PROJECT="$PROJECT_NAME" ERR_DATE="$DATE" ERR_REASON="$reason" \
+    node -e '
+      const fs = require("fs");
+      const r = {
+        project: process.env.ERR_PROJECT,
+        type: "unit",
+        date: process.env.ERR_DATE,
+        status: "error",
+        framework: "unknown",
+        total: 0, passed: 0, failed: 0, skipped: 0,
+        duration: "-",
+        error: process.env.ERR_REASON,
+        failures: [],
+        slowTests: [],
+      };
+      fs.writeFileSync(process.argv[1], JSON.stringify(r, null, 2));
+    ' "$out_file"
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
@@ -151,14 +173,20 @@ run_unit() {
   local timeout_secs
   timeout_secs=$(node -p "require('$PROJECT_CONFIG').unit_timeout_seconds || 600")
   echo "[$(date -u +%H:%M:%S)] Starting $PROJECT_NAME unit tests (timeout ${timeout_secs}s)..."
-  UNIT_RC=0
-  (cd "$PROJECT_PATH" && run_with_timeout "$timeout_secs" bash -c "$UNIT_COMMAND" > "$tmp" 2> "${tmp%.json}.stderr.log") || UNIT_RC=$?
-  node "$SCRIPT_DIR/parse-unit-results.js" "$tmp" "$PROJECT_NAME" "$DATE" "$UNIT_COMMAND" > "$out_file" || {
-    echo "[WARN] $PROJECT_NAME unit parse failed; removing partial output."
-    rm -f "$out_file"
-  }
-  if [[ -f "$out_file" ]]; then
+  local stderr_log="${tmp%.json}.stderr.log"
+  local UNIT_RC=0
+  (cd "$PROJECT_PATH" && run_with_timeout "$timeout_secs" bash -c "$UNIT_COMMAND" > "$tmp" 2> "$stderr_log") || UNIT_RC=$?
+  if [[ "$UNIT_RC" -eq 124 ]]; then
+    echo "[WARN] $PROJECT_NAME unit timed out (${timeout_secs}s); writing error result."
+    write_unit_error "$out_file" "유닛 실행 타임아웃 (>${timeout_secs}초). stderr 로그: $stderr_log"
+    return 0
+  fi
+
+  if node "$SCRIPT_DIR/parse-unit-results.js" "$tmp" "$PROJECT_NAME" "$DATE" "$UNIT_COMMAND" > "$out_file" 2>>"$stderr_log"; then
     echo "[$(date -u +%H:%M:%S)] Unit results saved: $out_file"
+  else
+    echo "[WARN] $PROJECT_NAME unit produced no parseable JSON; writing error result."
+    write_unit_error "$out_file" "유닛 명령이 JSON 결과를 생성하지 못함. stderr 로그: $stderr_log"
   fi
 }
 
