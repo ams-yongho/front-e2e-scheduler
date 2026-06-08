@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 const { EventEmitter } = require('events');
 const {
+  buildProjectTableBlocks,
   buildSummaryMessage,
   readResultsByProject,
   sendSlackMessage,
@@ -118,12 +119,13 @@ assert.ok(hasMarkdownField(summarySection, '*E2E 테스트 통과*\n97 / 100'));
 assert.ok(hasMarkdownField(summarySection, '*E2E 실패*\n3건'));
 assert.ok(hasMarkdownField(summarySection, '*E2E 소요시간*\n5분 52초'));
 
-assertContainsField(payload, '*✅ ca-admin*');
-assertContainsField(payload, 'E2E 50/50 · Unit - · 3분 42초');
-assertContainsField(payload, '*❌ typist*');
-assertContainsField(payload, 'E2E 47/50 · Unit - · 2분 10초');
-assertContainsField(payload, '*❌ cv-view*');
-assertContainsField(payload, 'E2E 결과 없음 · Unit - · -');
+const tableText1 = payload.blocks
+  .filter(b => b.type === 'section' && b.text && typeof b.text.text === 'string' && b.text.text.startsWith('```'))
+  .map(b => b.text.text).join('\n');
+const lineOf1 = name => tableText1.split('\n').find(l => l.includes(name));
+assert.ok(lineOf1('ca-admin').startsWith('✅') && lineOf1('ca-admin').includes('50/50'), 'ca-admin 행');
+assert.ok(lineOf1('typist').startsWith('⚠️') && lineOf1('typist').includes('47/50'), 'typist 행 (일부 실패 → ⚠️)');
+assert.ok(lineOf1('cv-view').startsWith('❌') && lineOf1('cv-view').includes('결과 없음'), 'cv-view 행 (결과 없음 → ❌)');
 
 const actionsBlock = payload.blocks.find(block => block.type === 'actions');
 assert.ok(actionsBlock, 'dashboard action block should exist');
@@ -213,20 +215,25 @@ assert.ok(!readableResults.has('scm-front'), 'empty result should be skipped');
     dashboardUrl: 'http://example.com:8080',
   });
 
-  // 두 개의 Summary 섹션이 있어야 함 (E2E, Unit)
+  // 집계 요약 섹션은 여전히 fields 로 존재 (E2E, Unit)
   const summaryTexts = message.blocks
     .filter(b => b.type === 'section' && Array.isArray(b.fields))
     .flatMap(b => b.fields.map(f => f.text));
   assert.ok(summaryTexts.some(t => t.includes('E2E') && t.includes('프로젝트 통과')), 'missing E2E summary');
   assert.ok(summaryTexts.some(t => t.includes('Unit') && t.includes('프로젝트 통과')), 'missing Unit summary');
 
-  // 프로젝트 줄에 두 타입 모두 표기
-  assert.ok(summaryTexts.some(t => t === 'E2E 19/21 · Unit 118/120 · 53초'),
-    `ca-admin combined row missing. saw: ${summaryTexts.filter(t => t.startsWith('E2E')).join(' | ')}`);
-
-  // typist는 unit 미등록 → Unit -
-  assert.ok(summaryTexts.some(t => t.includes('Unit -')),
-    `typist Unit - missing. saw: ${summaryTexts.filter(t => t.startsWith('E2E') || t.includes('typist')).join(' | ')}`);
+  // 프로젝트 영역은 도표 테이블(코드블록)로 렌더
+  const tableText = message.blocks
+    .filter(b => b.type === 'section' && b.text && typeof b.text.text === 'string' && b.text.text.startsWith('```'))
+    .map(b => b.text.text).join('\n');
+  const lineOf = name => tableText.split('\n').find(l => l.includes(name));
+  assert.ok(tableText.includes('프로젝트') && tableText.includes('E2E') && tableText.includes('Unit'), '테이블 헤더 누락');
+  assert.ok(lineOf('ca-admin').includes('19/21') && lineOf('ca-admin').includes('118/120'),
+    `ca-admin row missing. saw: ${lineOf('ca-admin')}`);
+  // typist 는 unit 미등록 → Unit 셀이 '-'
+  assert.ok(lineOf('typist').trim().endsWith('-'),
+    `typist Unit - missing. saw: ${lineOf('typist')}`);
+  assert.ok(!tableText.includes('·'), '프로젝트 행에 소요시간 구분자(·)가 없어야 함');
 
   // 종합 헤더는 'E2E 테스트' 대신 '테스트 전체 결과'
   const header = message.blocks.find(b => b.type === 'header');
@@ -261,4 +268,110 @@ assert.ok(!readableResults.has('scm-front'), 'empty result should be skipped');
   assert.ok(/일부 실패/.test(JSON.stringify(msgMissing.blocks)), '미수집 unit 도 실패로 집계해야 함');
 
   console.log('✅ slack summary: unit error/missing counts as failure');
+}
+
+// === 프로젝트 도표 테이블 ===
+{
+  // (a) 정확한 정렬 포맷 핀 (작은 픽스처)
+  const e2e = new Map([['ca-admin', { project: 'ca-admin', type: 'e2e', status: 'passed', total: 21, passed: 19, failed: 0, duration: '41초' }]]);
+  const unit = new Map([['ca-admin', { project: 'ca-admin', type: 'unit', status: 'passed', total: 120, passed: 118, failed: 0, duration: '12초' }]]);
+  const tests = { 'ca-admin': ['e2e', 'unit'] };
+
+  const blocks = buildProjectTableBlocks(['ca-admin'], e2e, unit, tests);
+  assert.strictEqual(blocks.length, 1, '단일 청크여야 함');
+  assert.strictEqual(blocks[0].type, 'section');
+  assert.strictEqual(blocks[0].text.type, 'mrkdwn');
+  assert.strictEqual(
+    blocks[0].text.text,
+    '```\n   프로젝트    E2E     Unit\n✅ ca-admin  19/21  118/120\n```'
+  );
+
+  // (b) 셀 규칙: 미등록 '-', 결과 없음, 수집 실패
+  const projects = ['ca-admin', 'typist', 'scm-front', 'cv-view'];
+  const e2e2 = new Map([
+    ['ca-admin', { status: 'passed', total: 50, passed: 50 }],
+    ['typist', { status: 'failed', total: 50, passed: 47 }],
+    ['scm-front', { status: 'passed', total: 0, passed: 0 }],
+  ]);
+  const unit2 = new Map([
+    ['ca-admin', { status: 'passed', total: 120, passed: 118 }],
+    ['scm-front', { status: 'error', error: 'timeout' }],
+  ]);
+  const tests2 = {
+    'ca-admin': ['e2e', 'unit'],
+    'typist': ['e2e'],
+    'scm-front': ['e2e', 'unit'],
+    'cv-view': ['e2e'],
+  };
+  const text = buildProjectTableBlocks(projects, e2e2, unit2, tests2)
+    .map(b => b.text.text).join('\n');
+  const lineOf = name => text.split('\n').find(l => l.includes(name));
+
+  assert.ok(text.includes('프로젝트') && text.includes('E2E') && text.includes('Unit'), '헤더 누락');
+  assert.ok(lineOf('ca-admin').includes('50/50') && lineOf('ca-admin').includes('118/120'), 'ca-admin 셀');
+  assert.ok(lineOf('typist').includes('47/50'), 'typist e2e 셀');
+  assert.ok(lineOf('typist').trim().endsWith('-'), 'typist unit 미등록은 -');
+  assert.ok(lineOf('scm-front').includes('수집 실패'), 'scm-front unit 수집 실패');
+  assert.ok(lineOf('cv-view').includes('결과 없음'), 'cv-view e2e 결과 없음');
+  assert.ok(!text.includes('·'), '프로젝트 행에 소요시간 구분자(·)가 없어야 함');
+
+  console.log('✅ buildProjectTableBlocks: 정렬/셀 규칙');
+}
+
+// === 3단계 아이콘 (✅ / ⚠️ / ❌) ===
+{
+  const projects = ['allpass', 'partial', 'zerofail', 'missing', 'collecterr'];
+  const e2e = new Map([
+    ['allpass', { status: 'passed', total: 10, passed: 10, failed: 0 }],
+    ['partial', { status: 'failed', total: 10, passed: 8, failed: 2 }],
+    ['zerofail', { status: 'failed', total: 10, passed: 0, failed: 10 }],
+    // 'missing' → e2e 결과 없음
+    ['collecterr', { status: 'passed', total: 5, passed: 5, failed: 0 }],
+  ]);
+  const unit = new Map([
+    ['allpass', { status: 'passed', total: 20, passed: 20, failed: 0 }],
+    ['partial', { status: 'passed', total: 20, passed: 20, failed: 0 }],
+    ['zerofail', { status: 'passed', total: 20, passed: 20, failed: 0 }],
+    ['missing', { status: 'passed', total: 20, passed: 20, failed: 0 }],
+    ['collecterr', { status: 'error', error: 'timeout' }],
+  ]);
+  const tests = {
+    allpass: ['e2e', 'unit'],
+    partial: ['e2e', 'unit'],
+    zerofail: ['e2e', 'unit'],
+    missing: ['e2e', 'unit'],
+    collecterr: ['e2e', 'unit'],
+  };
+  const text = buildProjectTableBlocks(projects, e2e, unit, tests)
+    .map(b => b.text.text).join('\n');
+  const lineOf = name => text.split('\n').find(l => l.includes(name));
+
+  assert.ok(lineOf('allpass').startsWith('✅'), '전부 통과 → ✅');
+  assert.ok(lineOf('partial').startsWith('⚠️'), '일부 실패 → ⚠️');
+  assert.ok(lineOf('zerofail').startsWith('❌'), '0건 통과 → ❌');
+  assert.ok(lineOf('missing').startsWith('❌'), '결과 없음 → ❌');
+  assert.ok(lineOf('collecterr').startsWith('❌'), '수집 실패 → ❌');
+
+  // 전체 상태: partial 만 있으면 ⚠️ 일부 경고, catastrophic 있으면 ❌ 일부 실패
+  const warnOnly = buildSummaryMessage({
+    date: '2026-06-08',
+    projects: ['allpass', 'partial'],
+    e2eByProject: e2e,
+    unitByProject: unit,
+    testsByProject: tests,
+    dashboardUrl: 'https://dash.example.com',
+  });
+  assert.ok(/⚠️ 일부 경고/.test(JSON.stringify(warnOnly.blocks)), 'partial 만 있으면 전체 ⚠️ 일부 경고');
+
+  const hasFail = buildSummaryMessage({
+    date: '2026-06-08',
+    projects: ['allpass', 'partial', 'missing'],
+    e2eByProject: e2e,
+    unitByProject: unit,
+    testsByProject: tests,
+    dashboardUrl: 'https://dash.example.com',
+  });
+  assert.ok(/❌ 일부 실패/.test(JSON.stringify(hasFail.blocks)), 'catastrophic 있으면 전체 ❌ 일부 실패');
+
+  console.log('✅ 3단계 아이콘 (✅ / ⚠️ / ❌)');
 }

@@ -67,6 +67,69 @@ function markdownText(text) {
   return { type: 'mrkdwn', text };
 }
 
+function displayWidth(str) {
+  let width = 0;
+  for (const ch of str) {
+    const code = ch.codePointAt(0);
+    // 변형 선택자(️ U+FE0F 등)와 ZWJ는 폭 0 — 앞 이모지에 결합되어 별도 칸을 차지하지 않음
+    if ((code >= 0xFE00 && code <= 0xFE0F) || code === 0x200D) continue;
+    const wide =
+      (code >= 0x1100 && code <= 0x115F) ||  // Hangul Jamo
+      (code >= 0x2300 && code <= 0x23FF) ||  // Misc Technical (⏸ 등)
+      (code >= 0x2600 && code <= 0x27BF) ||  // Misc Symbols + Dingbats (✅ ❌ ⚠)
+      (code >= 0x2E80 && code <= 0xA4CF) ||  // CJK 계열
+      (code >= 0xAC00 && code <= 0xD7A3) ||  // Hangul Syllables
+      (code >= 0xF900 && code <= 0xFAFF) ||  // CJK Compatibility
+      (code >= 0xFE30 && code <= 0xFE4F) ||
+      (code >= 0xFF00 && code <= 0xFF60) ||  // Fullwidth
+      (code >= 0xFFE0 && code <= 0xFFE6) ||
+      (code >= 0x1F000);                     // Emoji/Symbols
+    width += wide ? 2 : 1;
+  }
+  return width;
+}
+
+function padEndW(text, width) {
+  return text + ' '.repeat(Math.max(0, width - displayWidth(text)));
+}
+
+function padStartW(text, width) {
+  return ' '.repeat(Math.max(0, width - displayWidth(text))) + text;
+}
+
+// 단일 테스트 타입 결과를 3단계로 분류
+//  - 'clean'        : 실패 0 (전부 통과 / 테스트 없음)
+//  - 'partial'      : 실패가 있지만 일부라도 통과
+//  - 'catastrophic' : 결과 없음 / 수집 실패(error) / 0건 통과
+function classifyTypeResult(result) {
+  if (!result) return 'catastrophic';
+  if (result.status === 'error') return 'catastrophic';
+  const total = result.total || 0;
+  const passed = result.passed || 0;
+  const failed = result.failed != null ? result.failed : Math.max(0, total - passed);
+  if (total > 0 && passed === 0) return 'catastrophic';
+  if (failed > 0) return 'partial';
+  return 'clean';
+}
+
+// 프로젝트 단위 종합 등급 (등록된 타입들 중 가장 나쁜 단계)
+function projectTier(registered, e2e, unit) {
+  const tiers = [];
+  if (registered.includes('e2e')) tiers.push(classifyTypeResult(e2e));
+  if (registered.includes('unit')) tiers.push(classifyTypeResult(unit));
+  if (tiers.length === 0) return 'none';
+  if (tiers.includes('catastrophic')) return 'catastrophic';
+  if (tiers.includes('partial')) return 'partial';
+  return 'clean';
+}
+
+const TIER_ICON = {
+  clean: '✅',
+  partial: '⚠️',
+  catastrophic: '❌',
+  none: '⚠️',
+};
+
 function calculateSummary(projects, resultsByProject) {
   return projects.reduce((summary, project) => {
     const result = resultsByProject.get(project);
@@ -88,50 +151,42 @@ function calculateSummary(projects, resultsByProject) {
   });
 }
 
-function buildIntegratedProjectFields(projects, e2eByProject, unitByProject, testsByProject) {
-  const fields = [];
-  for (const project of projects) {
+function buildProjectTableBlocks(projects, e2eByProject, unitByProject, testsByProject) {
+  const rows = projects.map(project => {
     const registered = (testsByProject && testsByProject[project]) || [];
     const e2e = e2eByProject.get(project);
     const unit = unitByProject.get(project);
 
-    const e2eText = (() => {
-      if (!registered.includes('e2e')) return null;
-      if (!e2e) return '결과 없음';
-      return `${e2e.passed}/${e2e.total}`;
-    })();
-    const unitText = (() => {
-      if (!registered.includes('unit')) return '-';
-      if (!unit) return '결과 없음';
-      if (unit.status === 'error') return '수집 실패';
-      return `${unit.passed}/${unit.total}`;
-    })();
+    const e2eCell = !registered.includes('e2e') ? '-'
+      : !e2e ? '결과 없음'
+      : `${e2e.passed}/${e2e.total}`;
+    const unitCell = !registered.includes('unit') ? '-'
+      : !unit ? '결과 없음'
+      : unit.status === 'error' ? '수집 실패'
+      : `${unit.passed}/${unit.total}`;
 
-    const durationLabel = (() => {
-      const totalSec =
-        (e2e ? parseDurationSeconds(e2e.duration) : 0) +
-        (unit ? parseDurationSeconds(unit.duration) : 0);
-      if (!e2e && !unit) return '-';
-      return formatDurationSeconds(totalSec);
-    })();
+    const icon = TIER_ICON[projectTier(registered, e2e, unit)];
 
-    const overallFail =
-      (registered.includes('e2e') && (!e2e || e2e.status === 'failed')) ||
-      (registered.includes('unit') && (!unit || unit.status !== 'passed'));
-    const overallIcon = overallFail ? '❌' : (registered.length === 0 ? '⚠' : '✅');
+    return { icon, name: project, e2e: e2eCell, unit: unitCell };
+  });
 
-    fields.push(markdownText(`*${overallIcon} ${project}*`));
-    fields.push(markdownText(`E2E ${e2eText ?? '-'} · Unit ${unitText} · ${durationLabel}`));
+  const nameW = Math.max(displayWidth('프로젝트'), ...rows.map(r => displayWidth(r.name)), 0);
+  const e2eW = Math.max(displayWidth('E2E'), ...rows.map(r => displayWidth(r.e2e)), 0);
+  const unitW = Math.max(displayWidth('Unit'), ...rows.map(r => displayWidth(r.unit)), 0);
+
+  const GAP = '  ';
+  const ICON_PAD = '   '; // 아이콘(폭2) + 공백 = 3, 헤더는 아이콘이 없으므로 공백 3개로 맞춤
+  const header = ICON_PAD + padEndW('프로젝트', nameW) + GAP + padStartW('E2E', e2eW) + GAP + padStartW('Unit', unitW);
+  const renderRow = r => `${r.icon} ` + padEndW(r.name, nameW) + GAP + padStartW(r.e2e, e2eW) + GAP + padStartW(r.unit, unitW);
+
+  const CHUNK = 40; // Block Kit text 3000자 제한 보호 (40행 ≈ 1.7KB)
+  const blocks = [];
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const slice = rows.slice(i, i + CHUNK);
+    const table = [header, ...slice.map(renderRow)].join('\n');
+    blocks.push({ type: 'section', text: markdownText('```\n' + table + '\n```') });
   }
-  return fields;
-}
-
-function chunkFields(fields, chunkSize) {
-  const chunks = [];
-  for (let i = 0; i < fields.length; i += chunkSize) {
-    chunks.push(fields.slice(i, i + chunkSize));
-  }
-  return chunks;
+  return blocks;
 }
 
 function buildSummaryMessage({ date, projects, e2eByProject, unitByProject, testsByProject, dashboardUrl }) {
@@ -143,17 +198,17 @@ function buildSummaryMessage({ date, projects, e2eByProject, unitByProject, test
   const e2eSummary = calculateSummary(e2eEligible, e2eByProject);
   const unitSummary = calculateSummary(unitEligible, unitByProject);
 
-  const anyE2eFail = e2eEligible.some(p => {
-    const r = e2eByProject.get(p);
-    return !r || r.status === 'failed';
-  });
-  const anyUnitFail = unitEligible.some(p => {
-    const r = unitByProject.get(p);
-    return !r || r.status !== 'passed';
-  });
-  const allGood = !anyE2eFail && !anyUnitFail;
-  const summaryIcon = allGood ? '✅' : '❌';
-  const statusText = allGood ? '*✅ 전체 통과*' : '*❌ 일부 실패*';
+  // 전체 상태도 프로젝트와 동일한 3단계로 집계 (가장 나쁜 등급 기준)
+  const tiers = projects.map(p =>
+    projectTier(testsByProject?.[p] || [], e2eByProject.get(p), unitByProject.get(p))
+  );
+  const worst = tiers.includes('catastrophic') ? 'catastrophic'
+    : tiers.includes('partial') ? 'partial'
+    : 'clean';
+  const summaryIcon = TIER_ICON[worst];
+  const statusText = worst === 'catastrophic' ? '*❌ 일부 실패*'
+    : worst === 'partial' ? '*⚠️ 일부 경고*'
+    : '*✅ 전체 통과*';
 
   const e2eFields = [
     markdownText(`*E2E 프로젝트 통과*\n${e2eSummary.passedProjects} / ${e2eEligible.length}`),
@@ -168,7 +223,7 @@ function buildSummaryMessage({ date, projects, e2eByProject, unitByProject, test
     markdownText(`*Unit 소요시간*\n${formatDurationSeconds(unitSummary.durationSeconds)}`),
   ];
 
-  const projectFields = buildIntegratedProjectFields(projects, e2eByProject, unitByProject, testsByProject);
+  const projectBlocks = buildProjectTableBlocks(projects, e2eByProject, unitByProject, testsByProject);
 
   const text = [
     `[테스트 전체 결과] ${date}`,
@@ -182,7 +237,7 @@ function buildSummaryMessage({ date, projects, e2eByProject, unitByProject, test
     { type: 'section', fields: e2eFields },
     { type: 'section', fields: unitFields },
     { type: 'divider' },
-    ...chunkFields(projectFields, 10).map(fields => ({ type: 'section', fields })),
+    ...projectBlocks,
     { type: 'divider' },
     {
       type: 'actions',
@@ -322,6 +377,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  buildProjectTableBlocks,
   buildSingleResultMessage,
   buildSummaryMessage,
   readProjectNames,
