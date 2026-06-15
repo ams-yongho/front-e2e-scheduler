@@ -2,6 +2,6 @@
   "name": "find-parts",
   "path": "/Users/yonghokim/Documents/GitHub/amass/fp-front/packages/find-parts",
   "slack_channel": "#qa-alerts",
-  "e2e_command": "pnpm playwright test --reporter=json",
+  "e2e_command": "node \"$SCHEDULER_REPO_ROOT/scripts/run-find-parts-staging-e2e.js\" --reporter=json",
   "unit_command": "pnpm vitest run --reporter=json"
 }
