@@ -18,7 +18,7 @@
 - 기본 설정은 `webServer: pnpm dev`(= on-demand 라우트 컴파일), `fullyParallel: true`, `workers: undefined`(비-CI라 코어의 ~50% ≈ **20 워커**), `timeout` 기본 30s.
 - 차가운 dev 서버 1대에 20 워커가 동시에 서로 다른 라우트로 진입 → 라우트별 컴파일이 직렬 적체 → 30초 초과로 전멸. 타임라인상 초반 웨이브(+0s)는 전멸, 서버가 데워진 늦은 웨이브(+81s)만 통과. 통과한 6개는 "늦게 시작해 서버가 데워진 뒤 실행된 테스트"일 뿐.
 - 실패 스크린샷에 페이지가 데이터까지 렌더링됨 → 페이지는 결국 떴지만 30초 *후*에 떴다는 증거.
-- 프로젝트엔 의도된 설정 `playwright.staging.config.ts`(baseURL=`admin-staging.amass.co.kr`, `workers:1`, `fullyParallel:false`, `timeout:15s`, webServer 없음)가 이미 존재. CLAUDE.md 아키텍처("테스트 대상: 회사 내부망 스테이징 서버")와 일치. 스케줄러가 이걸 안 쓰는 게 진짜 뿌리.
+- 프로젝트엔 의도된 설정 `playwright.staging.config.ts`(baseURL 오버라이드 가능, `workers:1`, `fullyParallel:false`, `timeout:15s`, webServer 없음)가 이미 존재. 실제 접근 가능한 ca-admin staging 호스트는 `ca-admin-staging.amass.co.kr`이므로 스케줄러가 `PLAYWRIGHT_BASE_URL`로 이 URL을 명시해야 한다.
 
 ## File Structure
 
@@ -40,7 +40,7 @@
 
 Run:
 ```bash
-curl -sk -o /dev/null -w "%{http_code}\n" https://admin-staging.amass.co.kr/health
+curl -sk -o /dev/null -w "%{http_code}\n" https://ca-admin-staging.amass.co.kr/health
 ```
 Expected: `200` (또는 앱이 살아있음을 뜻하는 2xx/3xx). 연결 거부/타임아웃이면 Mac이 내부망/VPN에 연결돼 있는지 먼저 확인하고, 연결 후 재실행한다. **여기서 막히면 이후 단계는 무의미하므로 중단하고 네트워크부터 해결.**
 
@@ -57,7 +57,7 @@ Expected: `NEXT_PUBLIC_SERVER=staging` — 이 값이어야 `isStagingEnvironmen
 Run:
 ```bash
 cd /Users/yonghokim/Documents/GitHub/amass/ca-front/apps/ca-admin && \
-  pnpm playwright test -c playwright.staging.config.ts --reporter=json > /tmp/ca-admin-staging-check.json 2> /tmp/ca-admin-staging-check.stderr.log; \
+  PLAYWRIGHT_BASE_URL=https://ca-admin-staging.amass.co.kr pnpm playwright test -c playwright.staging.config.ts --reporter=json > /tmp/ca-admin-staging-check.json 2> /tmp/ca-admin-staging-check.stderr.log; \
   echo "exit=$?"
 ```
 Expected: 명령이 약 1~3분 내 종료(workers:1 직렬 실행). exit code는 일부 테스트 실패 시 1일 수 있으나, **`/tmp/ca-admin-staging-check.json`이 유효한 Playwright JSON으로 stdout에 생성되는 것**이 이 단계의 합격 기준.
@@ -115,7 +115,7 @@ Expected (현재):
 ```
 다음으로 바꾼다:
 ```json
-  "e2e_command": "pnpm playwright test -c playwright.staging.config.ts --reporter=json",
+  "e2e_command": "PLAYWRIGHT_BASE_URL=https://ca-admin-staging.amass.co.kr pnpm playwright test -c playwright.staging.config.ts --reporter=json",
 ```
 다른 필드(`name`, `path`, `slack_channel`, `unit_command`)는 건드리지 않는다.
 
@@ -125,7 +125,7 @@ Run:
 ```bash
 node -e 'const c=require("./projects/ca-admin/config.json"); console.log(c.e2e_command)'
 ```
-Expected: `pnpm playwright test -c playwright.staging.config.ts --reporter=json`
+Expected: `PLAYWRIGHT_BASE_URL=https://ca-admin-staging.amass.co.kr pnpm playwright test -c playwright.staging.config.ts --reporter=json`
 (파싱 에러가 나면 쉼표/따옴표 깨진 것 — 수정)
 
 ---
