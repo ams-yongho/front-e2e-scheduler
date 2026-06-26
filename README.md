@@ -6,7 +6,7 @@ Mac 호스트에서 cron을 통해 Playwright E2E 테스트를 주중 자동 실
 
 **동작 흐름:**
 
-- 주중 12:00 KST — cron → `scripts/run-all.sh` → 프로젝트별 결과 `results/[project]/{e2e,unit}/YYYY-MM-DD.json` 저장 → `results/manifest.json` 업데이트 → Slack 전체 요약 알림 1회 전송
+- 주중 06:00 KST — cron → `scripts/run-all.sh` → 프로젝트별 결과 `results/[project]/{e2e,unit}/YYYY-MM-DD.json` 저장 → `results/manifest.json` 업데이트 → Slack 전체 요약 알림 1회 전송
 - Docker: nginx (포트 8080) → `dashboard/dist/` 빌드 결과 + `results/` 볼륨 마운트
 
 ---
@@ -89,7 +89,7 @@ docker compose up -d
 
 ## 3. crontab 등록
 
-Mac 호스트의 `cron`이 주중 12:00 KST에 `scripts/run-all.sh`를 실행합니다. cron은 로그인 셸의 `PATH`를 자동으로 물려받지 않으므로 crontab 상단에 `/opt/homebrew/bin`과 `/usr/local/bin`을 포함한 `PATH`를 명시합니다. macOS 시스템 시간대가 KST인지 먼저 확인합니다.
+Mac 호스트의 `cron`이 주중 06:00 KST에 `scripts/run-all.sh`를 실행합니다. cron은 로그인 셸의 `PATH`를 자동으로 물려받지 않으므로 crontab 상단에 `/opt/homebrew/bin`과 `/usr/local/bin`을 포함한 `PATH`를 명시합니다. macOS 시스템 시간대가 KST인지 먼저 확인합니다.
 
 ```bash
 date +%Z
@@ -97,7 +97,7 @@ date +%Z
 
 ### 자동 등록 (권장)
 
-`scripts/setup-cron.sh`가 기본 스케줄(`0 12 * * 1-5`)로 crontab 항목을 추가합니다.
+`scripts/setup-cron.sh`가 기본 스케줄(`0 6 * * 1-5`)로 crontab 항목을 추가합니다.
 
 ```bash
 ./scripts/setup-cron.sh
@@ -119,7 +119,7 @@ crontab -e
 
 ```
 PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin
-0 12 * * 1-5 /bin/bash /Users/yongho/projects/e2e-scheduler/scripts/run-all.sh >> /Users/yongho/projects/e2e-scheduler/logs/cron.log 2>&1
+0 6 * * 1-5 /bin/bash /Users/yongho/projects/e2e-scheduler/scripts/run-all.sh >> /Users/yongho/projects/e2e-scheduler/logs/cron.log 2>&1
 ```
 
 등록 후 확인:

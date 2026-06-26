@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 
-CRON_SCHEDULE="${CRON_SCHEDULE:-0 12 * * 1-5}"  # 기본값: 주중 12:00 KST
+CRON_SCHEDULE="${CRON_SCHEDULE:-0 6 * * 1-5}"  # 기본값: 주중 06:00 KST
 TZ_LINE="TZ=Asia/Seoul"
 
 # cron 기본 PATH는 /usr/bin:/bin이라 nvm/homebrew의 node, pnpm을 찾지 못한다.
