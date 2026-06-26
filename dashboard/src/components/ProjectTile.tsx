@@ -18,7 +18,7 @@ function overallBadge(
 ): 'passed' | 'failed' | 'no-data' {
   const anyData = e2eLatest || unitLatest;
   if (!anyData) return 'no-data';
-  const e2eFail = registered.includes('e2e') && (!e2eLatest || e2eLatest.failed > 0);
+  const e2eFail = registered.includes('e2e') && (!e2eLatest || e2eLatest.status !== 'passed');
   const unitFail = registered.includes('unit') && (!unitLatest || unitLatest.status !== 'passed');
   return e2eFail || unitFail ? 'failed' : 'passed';
 }
@@ -87,15 +87,17 @@ export function ProjectTile({ name, registered, e2eLatest, e2eTrend, unitLatest,
           <span style={rowLabelStyle}>E2E</span>
           {registered.includes('e2e')
             ? e2eLatest
-              ? (
-                <TileStats
-                  passed={e2eLatest.passed}
-                  total={e2eLatest.total}
-                  failed={e2eLatest.failed}
-                  duration={e2eLatest.duration}
-                  status={e2eLatest.status}
-                />
-              )
+              ? e2eLatest.status === 'error'
+                ? <span style={{ ...emptyRowStyle, color: 'var(--danger)' }}>수집 실패</span>
+                : (
+                  <TileStats
+                    passed={e2eLatest.passed}
+                    total={e2eLatest.total}
+                    failed={e2eLatest.failed}
+                    duration={e2eLatest.duration}
+                    status={e2eLatest.status}
+                  />
+                )
               : <span style={emptyRowStyle}>결과 없음</span>
             : <span style={emptyRowStyle}>등록 안 됨</span>}
         </div>
