@@ -239,4 +239,37 @@ const parsedWithBracedLeadingLog = parsePlaywrightOutputText(
 );
 assert.strictEqual(parsedWithBracedLeadingLog.stats.expected, 2, 'braces in leading logs should be ignored');
 
+// === 실행 자체가 실패한 케이스: webServer 시작 실패 등 top-level errors ===
+// Playwright가 테스트를 한 개도 못 돌리면 suites:[]/stats 0이지만 errors[]에 사유가 담긴다.
+// 이를 'passed'로 오인하면 안 되고 'error'로 표시하며 사유를 노출해야 한다.
+const webServerFail = parsePlaywrightJSON(
+  {
+    config: { projects: [{ name: 'chromium' }] },
+    suites: [],
+    errors: [
+      { message: 'Error: Process from config.webServer was not able to start. Exit code: 1' },
+    ],
+    stats: { duration: 71480, expected: 0, unexpected: 0, flaky: 0, skipped: 0 },
+  },
+  'scm-front', '2026-06-25'
+);
+assert.strictEqual(webServerFail.status, 'error', 'top-level errors → status error (not passed)');
+assert.strictEqual(webServerFail.total, 0, 'no tests collected');
+assert.ok(
+  /webServer/.test(webServerFail.error || ''),
+  'error message surfaced from raw.errors'
+);
+
+// === 에러는 없지만 0개 수집된 케이스: 의미 있는 통과가 아니므로 error로 표시 ===
+const zeroCollected = parsePlaywrightJSON(
+  {
+    config: { projects: [{ name: 'chromium' }] },
+    suites: [],
+    stats: { duration: 500, expected: 0, unexpected: 0, flaky: 0, skipped: 0 },
+  },
+  'scm-front', '2026-06-25'
+);
+assert.strictEqual(zeroCollected.status, 'error', '0개 수집 → status error (not passed)');
+assert.ok((zeroCollected.error || '').length > 0, '0개 수집 사유 노출');
+
 console.log('✅ All parse-pw-results tests passed');

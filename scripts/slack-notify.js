@@ -159,6 +159,7 @@ function buildProjectTableBlocks(projects, e2eByProject, unitByProject, testsByP
 
     const e2eCell = !registered.includes('e2e') ? '-'
       : !e2e ? '결과 없음'
+      : e2e.status === 'error' ? '수집 실패'
       : `${e2e.passed}/${e2e.total}`;
     const unitCell = !registered.includes('unit') ? '-'
       : !unit ? '결과 없음'

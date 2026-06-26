@@ -138,12 +138,30 @@ function parsePlaywrightJSON(raw, projectName, date, options = {}) {
   const unexpected = stats.unexpected || 0;
   const flaky = stats.flaky || 0;
   const skipped = stats.skipped || 0;
-  return {
+  const total = expected + unexpected + flaky + skipped;
+
+  // 실행 자체가 실패한 경우를 '통과'로 오인하지 않도록 error로 표시한다.
+  // - raw.errors: webServer 시작 실패, globalSetup 오류, 설정 오류 등 top-level 에러
+  // - total === 0: 에러는 없더라도 테스트를 한 개도 수집/실행하지 못한 경우
+  // (예: cron 환경에서 webServer가 못 떠서 0개 → 기존 로직은 'passed'로 오인했다.)
+  const errors = Array.isArray(raw.errors) ? raw.errors : [];
+  const runError =
+    errors.length > 0
+      ? errors
+          .map(e => (e && (e.message || e.value)) || '')
+          .filter(Boolean)
+          .join('\n')
+          .trim() || '알 수 없는 Playwright 실행 오류'
+      : total === 0
+        ? '실행된 E2E 테스트가 없습니다 (테스트 0개 수집).'
+        : '';
+
+  const result = {
     project: projectName,
     type: 'e2e',
     date,
-    status: unexpected > 0 ? 'failed' : 'passed',
-    total: expected + unexpected + flaky + skipped,
+    status: runError ? 'error' : unexpected > 0 ? 'failed' : 'passed',
+    total,
     passed: expected,
     failed: unexpected,
     flaky,
@@ -154,6 +172,8 @@ function parsePlaywrightJSON(raw, projectName, date, options = {}) {
     flakyTests: collectFlakyTests(raw.suites),
     slowTests: collectSlowTests(raw.suites),
   };
+  if (runError) result.error = runError;
+  return result;
 }
 
 function parsePlaywrightOutputText(text, projectName = 'unknown') {

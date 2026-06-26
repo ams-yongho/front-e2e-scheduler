@@ -99,15 +99,52 @@ function NotRegistered({ label }: { label: string }) {
 }
 
 function E2eDetail({ latest, history, trend }: { latest: TestResult | null; history: TestResult[]; trend: number[] }) {
+  if (latest && latest.status === 'error') {
+    return (
+      <article
+        style={{
+          background: 'var(--surface-1)',
+          border: '1px solid var(--border-subtle)',
+          borderLeft: '2px solid var(--danger)',
+          borderRadius: 10,
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 22px 4px' }}>
+          <div style={{ flex: 1, fontSize: 11, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
+            · {latest.date}
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 999, background: 'var(--danger-muted)', color: 'var(--danger)' }}>
+            수집 실패
+          </span>
+        </div>
+        <div style={{ padding: '8px 22px 18px', color: 'var(--text-secondary)', fontSize: 13 }}>
+          E2E 테스트를 실행/수집하지 못했습니다.
+          {latest.error && (
+            <pre style={{ marginTop: 8, whiteSpace: 'pre-wrap', color: 'var(--text-muted)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+              {latest.error}
+            </pre>
+          )}
+        </div>
+      </article>
+    );
+  }
+
   const passRate = latest && latest.total > 0 ? (latest.passed / latest.total) * 100 : 0;
   const passRateInt = Math.round(passRate);
-  const statusKey: 'failed' | 'passed' | 'no-data' = !latest
+  const statusKey: 'failed' | 'passed' | 'error' | 'no-data' = !latest
     ? 'no-data'
-    : latest.failed > 0
-      ? 'failed'
-      : 'passed';
+    : latest.status === 'error'
+      ? 'error'
+      : latest.failed > 0
+        ? 'failed'
+        : 'passed';
   const accent =
-    statusKey === 'failed' ? 'var(--danger)' : statusKey === 'passed' ? 'var(--success)' : 'var(--surface-4)';
+    statusKey === 'failed' || statusKey === 'error'
+      ? 'var(--danger)'
+      : statusKey === 'passed'
+        ? 'var(--success)'
+        : 'var(--surface-4)';
 
   return (
     <article
@@ -155,15 +192,17 @@ function E2eCardHeader({
   accent,
 }: {
   latest: TestResult | null;
-  statusKey: 'failed' | 'passed' | 'no-data';
+  statusKey: 'failed' | 'passed' | 'error' | 'no-data';
   trend: number[];
   accent: string;
 }) {
-  const badgeText = statusKey === 'failed' ? '실패' : statusKey === 'passed' ? '통과' : '데이터 없음';
+  const isFail = statusKey === 'failed' || statusKey === 'error';
+  const badgeText =
+    statusKey === 'error' ? '수집 실패' : statusKey === 'failed' ? '실패' : statusKey === 'passed' ? '통과' : '데이터 없음';
   const badgeBg =
-    statusKey === 'failed' ? 'var(--danger-muted)' : statusKey === 'passed' ? 'var(--success-muted)' : 'var(--surface-3)';
+    isFail ? 'var(--danger-muted)' : statusKey === 'passed' ? 'var(--success-muted)' : 'var(--surface-3)';
   const badgeFg =
-    statusKey === 'failed' ? 'var(--danger)' : statusKey === 'passed' ? 'var(--success)' : 'var(--text-muted)';
+    isFail ? 'var(--danger)' : statusKey === 'passed' ? 'var(--success)' : 'var(--text-muted)';
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '16px 22px 4px' }}>

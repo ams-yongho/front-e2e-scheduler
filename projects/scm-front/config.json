@@ -2,6 +2,7 @@
   "name": "scm-front",
   "path": "/Users/yonghokim/Documents/GitHub/amass/scm-front/apps/scm",
   "slack_channel": "#qa-alerts",
-  "e2e_command": "pnpm playwright test --reporter=json",
-  "unit_command": "pnpm vitest run --reporter=json"
+  "e2e_command": "PLAYWRIGHT_BASE_URL=https://scm-staging.amass.co.kr pnpm playwright test -c playwright.staging.config.ts --reporter=json",
+  "unit_command": "pnpm vitest run --reporter=json",
+  "unit_timeout_seconds": 1800
 }

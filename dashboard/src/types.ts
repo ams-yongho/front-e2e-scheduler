@@ -49,7 +49,8 @@ export interface TestResult {
   project: string;
   type?: 'e2e';
   date: string;
-  status: 'passed' | 'failed';
+  status: 'passed' | 'failed' | 'error';
+  error?: string;
   total: number;
   passed: number;
   failed: number;
