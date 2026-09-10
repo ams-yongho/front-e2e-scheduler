@@ -190,7 +190,27 @@ function buildProjectTableBlocks(projects, e2eByProject, unitByProject, testsByP
   return blocks;
 }
 
-function buildSummaryMessage({ date, projects, e2eByProject, unitByProject, testsByProject, dashboardUrl }) {
+// 레포 동기화 결과(results/sync/<date>.json) → context 블록.
+// 어느 브랜치·커밋으로 테스트했는지, 건너뛴 레포는 왜·어느 브랜치로 실행됐는지 한 줄씩 보여준다.
+function buildRepoSyncBlocks(repoSync) {
+  if (!Array.isArray(repoSync) || repoSync.length === 0) return [];
+
+  const lines = repoSync.map(r => {
+    const name = path.basename(r.root || '');
+    if (r.result === 'synced') {
+      return `🔄 ${name} · ${r.branch}@${r.head}`;
+    }
+    const reason = r.result === 'skipped_dirty' ? '미커밋 변경 있음'
+      : r.result === 'skipped_local_ahead' ? `로컬 ${r.branch} 에 push 안 한 커밋 있음`
+      : (r.message || r.result);
+    const ranOn = r.original_branch || (r.original_head ? r.original_head.slice(0, 7) : '알 수 없음');
+    return `⚠️ ${name} · ${r.branch} 동기화 건너뜀 (${reason}) → 현재 브랜치 ${ranOn} 로 실행`;
+  });
+
+  return [{ type: 'context', elements: [markdownText(lines.join('\n'))] }];
+}
+
+function buildSummaryMessage({ date, projects, e2eByProject, unitByProject, testsByProject, dashboardUrl, repoSync }) {
   const externalDashboardUrl = validateDashboardUrl(dashboardUrl);
 
   const e2eEligible = projects.filter(p => (testsByProject?.[p] || ['e2e']).includes('e2e'));
@@ -235,6 +255,7 @@ function buildSummaryMessage({ date, projects, e2eByProject, unitByProject, test
   const blocks = [
     { type: 'header', text: plainText(`테스트 전체 결과 · ${date}`) },
     { type: 'section', text: markdownText(statusText) },
+    ...buildRepoSyncBlocks(repoSync),
     { type: 'section', fields: e2eFields },
     { type: 'section', fields: unitFields },
     { type: 'divider' },
@@ -275,6 +296,19 @@ function readResultsByProject(projects, resultsDir, date, type) {
     }
   }
   return map;
+}
+
+// results/sync/<date>.json (sync-all-repos.sh 산출물). 없거나 깨졌으면 빈 배열.
+function readRepoSync(resultsDir, date) {
+  const file = path.join(resultsDir, 'sync', `${date}.json`);
+  if (!fs.existsSync(file)) return [];
+  try {
+    const parsed = readJson(file);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    console.warn(`[WARN] Skipping unreadable repo sync result: ${file} (${err.message})`);
+    return [];
+  }
 }
 
 function sendSlackMessage(webhookUrl, text) {
@@ -356,6 +390,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
       unitByProject,
       testsByProject,
       dashboardUrl: env.DASHBOARD_URL,
+      repoSync: readRepoSync(resultsDir, date),
     });
   } else {
     const [resultsFile] = argv;
@@ -382,6 +417,7 @@ module.exports = {
   buildSingleResultMessage,
   buildSummaryMessage,
   readProjectNames,
+  readRepoSync,
   readResultsByProject,
   sendSlackMessage,
   validateDashboardUrl,
