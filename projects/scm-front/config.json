@@ -1,6 +1,10 @@
 {
   "name": "scm-front",
   "path": "/Users/yonghokim/Documents/GitHub/amass/scm-front/apps/scm",
+  "repo": {
+    "root": "/Users/yonghokim/Documents/GitHub/amass/scm-front",
+    "branch": "develop"
+  },
   "slack_channel": "#qa-alerts",
   "e2e_command": "PLAYWRIGHT_BASE_URL=https://scm-staging.amass.co.kr pnpm playwright test -c playwright.staging.config.ts --reporter=json",
   "unit_command": "pnpm vitest run --reporter=json",
