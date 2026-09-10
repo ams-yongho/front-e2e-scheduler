@@ -46,7 +46,6 @@ DASHBOARD_URL=http://172.17.2.240:8080
 - `pv-view`
 - `scm-front`
 - `typist`
-- `vis`
 
 예시:
 
@@ -156,7 +155,6 @@ tail -f logs/cron.log
 ./scripts/run-project.sh ca-admin
 ./scripts/run-project.sh typist
 ./scripts/run-project.sh cv-view
-./scripts/run-project.sh vis
 ./scripts/run-project.sh pv-view
 ```
 
