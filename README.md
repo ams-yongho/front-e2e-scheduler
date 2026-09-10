@@ -53,6 +53,7 @@ DASHBOARD_URL=http://172.17.2.240:8080
 {
   "name": "ca-admin",
   "path": "/Users/yonghokim/Documents/GitHub/amass/ca-front/apps/ca-admin",
+  "repo": { "root": "/Users/yonghokim/Documents/GitHub/amass/ca-front", "branch": "develop" },
   "e2e_command": "pnpm playwright test --reporter=json",
   "unit_command": "pnpm vitest run --reporter=json",
   "slack_channel": "#qa-alerts"
@@ -63,6 +64,16 @@ DASHBOARD_URL=http://172.17.2.240:8080
 
 - `unit_command`가 없으면 해당 프로젝트는 유닛테스트가 skip된다. 대시보드와 Slack에는 `등록 안 됨`/`Unit -`로 표시된다.
 - `e2e_command`/`unit_command` 모두 JSON reporter 옵션(`--reporter=json` 등)을 포함해야 한다.
+
+### 2-1) 레포 동기화 (`repo`)
+
+스케줄러는 개발할 때 쓰는 체크아웃을 그대로 실행하므로, `repo`를 지정하면 `run-all.sh`가 실행 직전에 그 레포를 `origin/<branch>`(기본 `develop`) 최신으로 맞추고 끝나면 원래 브랜치로 되돌립니다. 작업 중인 브랜치를 어디로 옮겨 두어도 결과가 흔들리지 않습니다.
+
+- 미커밋 변경이 있는 레포는 건드리지 않고 현재 상태로 실행하며, Slack 요약에 `동기화 건너뜀` 사유가 표시됩니다.
+- 로컬 `develop`에 push하지 않은 커밋이 있으면 덮어쓰지 않습니다.
+- `pnpm-lock.yaml`이 설치 상태와 다를 때만 `pnpm install --frozen-lockfile`을 실행합니다.
+- 실행 결과는 `results/sync/YYYY-MM-DD.json`에 남고, `SKIP_REPO_SYNC=1 ./scripts/run-all.sh`로 끌 수 있습니다.
+- typist·pv-view처럼 gitignore된 `.env.staging`을 쓰는 앱은 체크아웃에 그 파일이 있어야 합니다. 브랜치를 바꿔도 gitignore 파일은 유지됩니다.
 
 ### 3) 대시보드 빌드
 

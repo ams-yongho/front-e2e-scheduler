@@ -10,7 +10,13 @@ const repoRoot = path.resolve(__dirname, '../..');
 const projectName = '__tmp-command-test';
 const projectDir = path.join(repoRoot, 'projects', projectName);
 const resultDir = path.join(repoRoot, 'results', projectName);
-const today = new Date().toISOString().slice(0, 10);
+// run-project.sh 는 `date +%Y-%m-%d`(로컬 시간대) 로 파일명을 정하므로 UTC 가 아닌 로컬 날짜를 써야 한다.
+// (toISOString 은 UTC 라서 KST 00~09시 사이에는 하루 어긋나 결과 파일을 못 찾는다)
+const today = (() => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+})();
 const resultFile = path.join(resultDir, 'e2e', `${today}.json`);
 const pwOutputFile = path.join(os.tmpdir(), `pw-${projectName}-${today}.json`);
 const pwStderrFile = path.join(os.tmpdir(), `pw-${projectName}-${today}.stderr.log`);
@@ -254,6 +260,63 @@ try {
     fs.rmSync(attProjectDir, { recursive: true, force: true });
     fs.rmSync(attResultDir, { recursive: true, force: true });
   }
+  // --- E2E 명령이 JSON 없이 실패 → error 결과 파일 + unit 은 계속 실행 시나리오 ---
+  // 예: 체크아웃에 앱 폴더가 없어 pnpm 이 "ERR_PNPM_RECURSIVE_EXEC_NO_PACKAGE" 만 출력하고 죽는 경우.
+  // 파서가 크래시하면 빈 결과 파일이 남아 대시보드/Slack 에 "결과 없음"으로만 뜨고 unit 도 건너뛰었다.
+  const e2eErrProjectName = '__tmp-e2e-error-test';
+  const e2eErrProjectDir = path.join(repoRoot, 'projects', e2eErrProjectName);
+  const e2eErrResultDir = path.join(repoRoot, 'results', e2eErrProjectName);
+  const e2eErrResultFile = path.join(e2eErrResultDir, 'e2e', `${today}.json`);
+  const e2eErrUnitResultFile = path.join(e2eErrResultDir, 'unit', `${today}.json`);
+
+  fs.rmSync(e2eErrProjectDir, { recursive: true, force: true });
+  fs.rmSync(e2eErrResultDir, { recursive: true, force: true });
+  fs.mkdirSync(e2eErrProjectDir, { recursive: true });
+
+  const nonJsonEmitter = path.join(fixtureProjectDir, 'non-json-emitter.js');
+  fs.writeFileSync(
+    nonJsonEmitter,
+    'console.log(" ERR_PNPM_RECURSIVE_EXEC_NO_PACKAGE  No package found in this workspace");\nprocess.exit(1);\n',
+    'utf8'
+  );
+
+  fs.writeFileSync(
+    path.join(e2eErrProjectDir, 'config.json'),
+    JSON.stringify({
+      name: e2eErrProjectName,
+      path: fixtureProjectDir,
+      e2e_command: `${process.execPath} ${nonJsonEmitter} --reporter=json`,
+      unit_command: `${process.execPath} ${unitEmitter}`,
+      slack_channel: '#qa-alerts',
+    }, null, 2),
+    'utf8'
+  );
+
+  const e2eErrRun = spawnSync('bash', ['scripts/run-project.sh', e2eErrProjectName], {
+    cwd: repoRoot,
+    env: { ...process.env, PATH: `${fakeBinDir}${path.delimiter}${process.env.PATH}` },
+    encoding: 'utf8',
+  });
+
+  try {
+    assert.strictEqual(e2eErrRun.status, 0, `e2e error run should still exit 0:\n${e2eErrRun.stderr}`);
+    assert.ok(fs.existsSync(e2eErrResultFile), `e2e error 결과 파일이 있어야 함: ${e2eErrResultFile}`);
+    const e2eErrResult = JSON.parse(fs.readFileSync(e2eErrResultFile, 'utf8'));
+    assert.strictEqual(e2eErrResult.type, 'e2e');
+    assert.strictEqual(e2eErrResult.status, 'error');
+    assert.strictEqual(e2eErrResult.total, 0);
+    assert.ok(
+      typeof e2eErrResult.error === 'string' && e2eErrResult.error.includes('ERR_PNPM_RECURSIVE_EXEC_NO_PACKAGE'),
+      `error 사유에 명령 출력 첫 줄이 포함되어야 함: ${e2eErrResult.error}`
+    );
+    assert.deepStrictEqual(e2eErrResult.failures, []);
+    assert.ok(fs.existsSync(e2eErrUnitResultFile), 'e2e 가 실패해도 unit 은 계속 실행되어 결과가 있어야 함');
+    console.log('✅ run-project e2e non-JSON output → error-status result file, unit continues');
+  } finally {
+    fs.rmSync(e2eErrProjectDir, { recursive: true, force: true });
+    fs.rmSync(e2eErrResultDir, { recursive: true, force: true });
+  }
+
   // --- Unit 실패(빈 출력) → error 결과 파일 시나리오 ---
   const errProjectName = '__tmp-unit-error-test';
   const errProjectDir = path.join(repoRoot, 'projects', errProjectName);

@@ -23,6 +23,18 @@ if ! ls "$PROJECTS_DIR"/*/config.json > /dev/null 2>&1; then
   exit 1
 fi
 
+# 2.5) 레포 동기화: config.json 에 repo:{root,branch} 가 있는 레포를 origin/<branch> 최신으로 맞춘다.
+#      개발자 체크아웃을 공유하므로 미커밋 변경·로컬 커밋이 있으면 건드리지 않고 현재 상태로 실행한다.
+#      끝나면(중단돼도) restore-all-repos.sh 가 원래 브랜치로 되돌린다. SKIP_REPO_SYNC=1 로 끌 수 있다.
+SYNC_FILE="$RESULTS_DIR/sync/$DATE.json"
+if [[ "${SKIP_REPO_SYNC:-0}" == "1" ]]; then
+  echo "[run-all] SKIP_REPO_SYNC=1 → 레포 동기화 건너뜀"
+else
+  bash "$SCRIPT_DIR/sync-all-repos.sh" "$PROJECTS_DIR" "$SYNC_FILE" \
+    || echo "[WARN] repo sync step failed, continuing with current checkouts..."
+  trap 'bash "$SCRIPT_DIR/restore-all-repos.sh" "$SYNC_FILE" || echo "[WARN] repo restore failed"' EXIT
+fi
+
 # 3) 프로젝트별 실행 (실패해도 다음으로 진행)
 for config in "$PROJECTS_DIR"/*/config.json; do
   [[ -f "$config" ]] || continue

@@ -375,3 +375,45 @@ assert.ok(!readableResults.has('scm-front'), 'empty result should be skipped');
 
   console.log('✅ 3단계 아이콘 (✅ / ⚠️ / ❌)');
 }
+
+// === 레포 동기화 결과(results/sync/<date>.json) 를 요약 메시지에 표시 ===
+// 어느 브랜치·커밋으로 테스트했는지, 동기화를 건너뛴 레포가 있는지 Slack 에서 바로 보이게 한다.
+{
+  const { buildSummaryMessage, readRepoSync } = require('../slack-notify');
+  const e2e = new Map([['ca-admin', { status: 'passed', total: 1, passed: 1, failed: 0, duration: '1초', failures: [] }]]);
+  const tests = { 'ca-admin': ['e2e'] };
+  const repoSync = [
+    { root: '/Users/me/ca-front', branch: 'develop', original_branch: 'feat/work', result: 'synced', head: 'abc1234', restore: 'restored', projects: ['ca-admin'] },
+    { root: '/Users/me/biz-mall-front', branch: 'develop', original_branch: 'feat/other', result: 'skipped_dirty', head: '', message: '미커밋 변경이 있어 브랜치를 바꾸지 않음', projects: ['biz-admin', 'biz-mall'] },
+  ];
+
+  const withSync = buildSummaryMessage({
+    date: '2026-09-11', projects: ['ca-admin'], e2eByProject: e2e, unitByProject: new Map(), testsByProject: tests,
+    dashboardUrl: 'https://dash.example.com', repoSync,
+  });
+  const syncText = withSync.blocks
+    .filter(b => (b.type === 'context' || b.type === 'section') && (b.text || b.elements))
+    .map(b => JSON.stringify(b)).join('\n');
+  assert.ok(syncText.includes('ca-front') && syncText.includes('develop@abc1234'), '동기화된 레포는 브랜치@커밋 표시');
+  assert.ok(syncText.includes('biz-mall-front') && syncText.includes('건너뜀') && syncText.includes('feat/other'),
+    '건너뛴 레포는 사유와 실제 실행 브랜치 표시');
+
+  const withoutSync = buildSummaryMessage({
+    date: '2026-09-11', projects: ['ca-admin'], e2eByProject: e2e, unitByProject: new Map(), testsByProject: tests,
+    dashboardUrl: 'https://dash.example.com',
+  });
+  assert.ok(!JSON.stringify(withoutSync.blocks).includes('동기화'), 'repoSync 없으면 동기화 블록 없음 (기존 동작 유지)');
+
+  // readRepoSync: 파일 없으면 빈 배열, 있으면 배열
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'slack-sync-'));
+  try {
+    assert.deepStrictEqual(readRepoSync(tmp, '2026-09-11'), []);
+    fs.mkdirSync(path.join(tmp, 'sync'));
+    fs.writeFileSync(path.join(tmp, 'sync', '2026-09-11.json'), JSON.stringify(repoSync));
+    assert.strictEqual(readRepoSync(tmp, '2026-09-11').length, 2);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+
+  console.log('✅ 레포 동기화 결과 표시');
+}

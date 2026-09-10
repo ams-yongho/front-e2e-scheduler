@@ -52,6 +52,31 @@ write_unit_error() {
     ' "$out_file"
 }
 
+# write_e2e_error <out_file> <reason>
+# Playwright JSON 을 얻지 못했을 때(명령 자체 실패, 비JSON 출력 등) 빈 파일 대신 error 결과를 남긴다.
+# 빈 파일은 대시보드/Slack 에 "결과 없음"으로만 보여 원인을 알 수 없다.
+write_e2e_error() {
+  local out_file="$1"; local reason="$2"
+  ERR_PROJECT="$PROJECT_NAME" ERR_DATE="$DATE" ERR_REASON="$reason" \
+    node -e '
+      const fs = require("fs");
+      const r = {
+        project: process.env.ERR_PROJECT,
+        type: "e2e",
+        date: process.env.ERR_DATE,
+        status: "error",
+        total: 0, passed: 0, failed: 0, flaky: 0, skipped: 0,
+        duration: "-",
+        browsers: [],
+        error: process.env.ERR_REASON,
+        failures: [],
+        flakyTests: [],
+        slowTests: [],
+      };
+      fs.writeFileSync(process.argv[1], JSON.stringify(r, null, 2));
+    ' "$out_file"
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 export SCHEDULER_REPO_ROOT="$REPO_ROOT"
@@ -151,15 +176,29 @@ run_e2e() {
   echo "[$(date -u +%H:%M:%S)] Starting $PROJECT_NAME E2E tests (timeout ${e2e_timeout_secs}s)..."
   (cd "$PROJECT_PATH" && run_with_timeout "$e2e_timeout_secs" bash -c "$E2E_COMMAND" > "$tmp" 2> "${tmp%.json}.stderr.log") || true
 
+  local -a parse_args=("$tmp" "$PROJECT_NAME" "$DATE")
   if [[ -d "$attachments_src" ]]; then
     rm -rf "$attachments_out"
     mkdir -p "$attachments_out"
     cp -R "$attachments_src"/. "$attachments_out"/ 2>/dev/null || true
-    node "$SCRIPT_DIR/parse-pw-results.js" "$tmp" "$PROJECT_NAME" "$DATE" "$attachments_src" "$attachments_url" > "$out_file"
-  else
-    node "$SCRIPT_DIR/parse-pw-results.js" "$tmp" "$PROJECT_NAME" "$DATE" > "$out_file"
+    parse_args+=("$attachments_src" "$attachments_url")
   fi
-  echo "[$(date -u +%H:%M:%S)] E2E results saved: $out_file"
+
+  local stderr_log="${tmp%.json}.stderr.log"
+  if node "$SCRIPT_DIR/parse-pw-results.js" "${parse_args[@]}" > "$out_file" 2>>"$stderr_log"; then
+    echo "[$(date -u +%H:%M:%S)] E2E results saved: $out_file"
+  else
+    # 파서가 실패하면 > 리다이렉트로 빈 파일만 남는다. 명령 출력 첫 줄을 사유에 담아 error 결과로 대체한다.
+    local first_line
+    first_line=$(head -c 300 "$tmp" 2>/dev/null | head -n 1 | tr -d '\r')
+    local reason="E2E 명령이 Playwright JSON 결과를 생성하지 못함"
+    if [[ -n "$first_line" ]]; then
+      reason="$reason. 출력: ${first_line}"
+    fi
+    reason="$reason. stderr 로그: $stderr_log"
+    echo "[WARN] $PROJECT_NAME e2e produced no parseable JSON; writing error result."
+    write_e2e_error "$out_file" "$reason"
+  fi
 }
 
 run_unit() {

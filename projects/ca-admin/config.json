@@ -1,6 +1,10 @@
 {
   "name": "ca-admin",
   "path": "/Users/yonghokim/Documents/GitHub/amass/ca-front/apps/ca-admin",
+  "repo": {
+    "root": "/Users/yonghokim/Documents/GitHub/amass/ca-front",
+    "branch": "develop"
+  },
   "slack_channel": "#qa-alerts",
   "e2e_command": "PLAYWRIGHT_BASE_URL=https://ca-admin-staging.amass.co.kr pnpm playwright test -c playwright.staging.config.ts --reporter=json",
   "unit_command": "pnpm vitest run --reporter=json"

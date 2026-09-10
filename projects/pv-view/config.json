@@ -1,6 +1,10 @@
 {
   "name": "pv-view",
   "path": "/Users/yonghokim/Documents/GitHub/amass/ca-front/apps/pv-view",
+  "repo": {
+    "root": "/Users/yonghokim/Documents/GitHub/amass/ca-front",
+    "branch": "develop"
+  },
   "slack_channel": "#qa-alerts",
   "e2e_command": "pnpm playwright test --reporter=json",
   "unit_command": "pnpm vitest run --reporter=json"

@@ -37,7 +37,8 @@ e2e-scheduler/
 ```json
 {
   "name": "ca-admin",
-  "path": "/Users/yongho/projects/ca-admin",
+  "path": "/Users/yongho/projects/ca-front/apps/ca-admin",
+  "repo": { "root": "/Users/yongho/projects/ca-front", "branch": "develop" },
   "e2e_command": "pnpm playwright test --reporter=json",
   "unit_command": "pnpm vitest run --reporter=json",
   "slack_channel": "#qa-alerts"
@@ -47,6 +48,22 @@ e2e-scheduler/
 - `e2e_command`가 없으면 해당 프로젝트의 E2E는 skip, 결과 파일도 생성하지 않는다.
 - `unit_command`가 없으면 유닛테스트는 skip되고 Slack/대시보드에 `Unit -`로 표시된다.
 - Playwright JSON reporter 옵션 포함은 동일. 유닛테스트는 Vitest 또는 Jest의 JSON reporter를 사용한다.
+- `repo`가 있으면 `run-all.sh`가 실행 직전에 해당 레포를 `origin/<branch>` 최신으로 맞추고(기본 `develop`), 끝나면 원래 브랜치로 되돌린다. 같은 `root`를 쓰는 프로젝트는 레포당 한 번만 동기화하며, 레포당 `branch`는 하나여야 한다. `repo`가 없으면 체크아웃을 그대로 실행한다.
+
+## 레포 동기화 (`repo` 설정)
+
+스케줄러는 개발자가 쓰는 체크아웃을 공유하므로, 그대로 두면 06:00에 어떤 브랜치가 체크아웃되어 있느냐에 따라 결과가 달라진다. `repo` 설정이 있는 레포는 다음 순서로 처리한다.
+
+1. `scripts/sync-all-repos.sh` — 레포별로 `scripts/sync-repo.sh sync <root> <branch>` 실행
+   - 추적 파일에 미커밋 변경이 있으면 `skipped_dirty` (브랜치 변경 없음, 현재 상태로 테스트)
+   - 로컬 `<branch>`에 origin에 없는 커밋이 있으면 `skipped_local_ahead` (덮어쓰지 않음)
+   - 그 외에는 `git fetch` → `checkout <branch>` → `merge --ff-only origin/<branch>` 로 `synced`
+   - `node_modules/.pnpm/lock.yaml`이 `pnpm-lock.yaml`과 다르면 `pnpm install --frozen-lockfile`
+   - 결과는 `results/sync/YYYY-MM-DD.json` 배열로 저장 (`root`, `branch`, `original_branch`, `result`, `head`, `installed`, `message`, `projects`)
+2. 프로젝트 순회 실행
+3. `scripts/restore-all-repos.sh` — `synced`였던 레포만 원래 브랜치로 복귀하고 `restore` 필드를 기록. 중단돼도 `trap EXIT`로 실행된다.
+
+Slack 요약에는 레포별 한 줄(`🔄 ca-front · develop@abc1234`, `⚠️ … 동기화 건너뜀 (미커밋 변경 있음) → 현재 브랜치 feat/x 로 실행`)이 붙는다. 환경 변수 `SKIP_REPO_SYNC=1`로 동기화 단계를 끌 수 있다.
 
 ## 스케줄 실행 방식
 
