@@ -42,6 +42,21 @@ emit() {
 
 git_in() { git -C "$ROOT" "$@"; }
 
+# cron 은 macOS 로그인 세션 밖에서 돌아 osxkeychain credential helper 가 자격증명을 못 읽는다.
+# 그러면 git 이 TTY 로 Username 을 물으려다 "Device not configured" 로 실패하므로,
+# GITHUB_TOKEN(.env)이 있으면 그 토큰을 쓰는 helper 로 fetch 하고, 어떤 경우에도 프롬프트는 띄우지 않는다.
+# 토큰은 환경 변수로만 전달되어 명령줄·프로세스 목록에 노출되지 않는다.
+git_fetch() {
+  if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+    GIT_TERMINAL_PROMPT=0 git_in \
+      -c credential.helper= \
+      -c 'credential.helper=!f() { test "$1" = get || return 0; echo username=x-access-token; echo "password=$GITHUB_TOKEN"; }; f' \
+      fetch "$@"
+  else
+    GIT_TERMINAL_PROMPT=0 git_in fetch "$@"
+  fi
+}
+
 # node_modules 가 현재 pnpm-lock.yaml 과 일치하는지. pnpm 은 설치 시점의 lockfile 사본을
 # node_modules/.pnpm/lock.yaml 에 남기므로 둘을 비교하면 재설치 필요 여부를 정확히 알 수 있다.
 needs_install() {
@@ -64,7 +79,7 @@ do_sync() {
   fi
 
   local fetch_err
-  if ! fetch_err="$(git_in fetch -q origin "$BRANCH" 2>&1)"; then
+  if ! fetch_err="$(git_fetch -q origin "$BRANCH" 2>&1)"; then
     emit failed "git fetch origin $BRANCH 실패: ${fetch_err}"; return 0
   fi
 

@@ -71,6 +71,7 @@ DASHBOARD_URL=http://172.17.2.240:8080
 
 - 미커밋 변경이 있는 레포는 건드리지 않고 현재 상태로 실행하며, Slack 요약에 `동기화 건너뜀` 사유가 표시됩니다.
 - 로컬 `develop`에 push하지 않은 커밋이 있으면 덮어쓰지 않습니다.
+- cron은 macOS 로그인 세션 밖에서 돌아 키체인(osxkeychain·`gh auth`)에 저장된 GitHub 자격증명을 읽지 못합니다. `.env`에 `GITHUB_TOKEN`(대상 레포 Contents read-only PAT)을 넣어야 `git fetch`가 성공합니다. 없으면 `could not read Username … Device not configured`로 동기화가 실패하고 **오래된 체크아웃으로 테스트가 실행**됩니다.
 - `pnpm-lock.yaml`이 설치 상태와 다를 때만 `pnpm install --frozen-lockfile`을 실행합니다.
 - 실행 결과는 `results/sync/YYYY-MM-DD.json`에 남고, `SKIP_REPO_SYNC=1 ./scripts/run-all.sh`로 끌 수 있습니다.
 - typist·pv-view처럼 gitignore된 `.env.staging`을 쓰는 앱은 체크아웃에 그 파일이 있어야 합니다. 브랜치를 바꿔도 gitignore 파일은 유지됩니다.
