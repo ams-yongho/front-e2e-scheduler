@@ -57,7 +57,7 @@ e2e-scheduler/
 1. `scripts/sync-all-repos.sh` — 레포별로 `scripts/sync-repo.sh sync <root> <branch>` 실행
    - 추적 파일에 미커밋 변경이 있으면 `skipped_dirty` (브랜치 변경 없음, 현재 상태로 테스트)
    - 로컬 `<branch>`에 origin에 없는 커밋이 있으면 `skipped_local_ahead` (덮어쓰지 않음)
-   - 그 외에는 `git fetch` → `checkout <branch>` → `merge --ff-only origin/<branch>` 로 `synced`
+   - 그 외에는 `git fetch`(`.env`의 `GITHUB_TOKEN`이 있으면 그 토큰으로 인증, 터미널 프롬프트 비활성) → `checkout <branch>` → `merge --ff-only origin/<branch>` 로 `synced`
    - `node_modules/.pnpm/lock.yaml`이 `pnpm-lock.yaml`과 다르면 `pnpm install --frozen-lockfile`
    - 결과는 `results/sync/YYYY-MM-DD.json` 배열로 저장 (`root`, `branch`, `original_branch`, `result`, `head`, `installed`, `message`, `projects`)
 2. 프로젝트 순회 실행
