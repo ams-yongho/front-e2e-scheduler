@@ -52,7 +52,8 @@ function collectFailures(suites, options = {}) {
   for (const { suite, spec } of iterSpecs(suites)) {
     for (const test of spec.tests || []) {
       if (test.status !== 'unexpected') continue;
-      const failedResult = (test.results || []).find(r => r.status === 'failed') || {};
+      // 타임아웃은 'timedOut', 중단은 'interrupted' 로 기록되므로 'failed' 만 찾으면 에러·첨부가 비어 버린다
+      const failedResult = (test.results || []).find(r => !['passed', 'skipped'].includes(r.status)) || {};
       const steps = (failedResult.steps || []).map(s => s.title);
       failures.push({
         test: spec.title,
