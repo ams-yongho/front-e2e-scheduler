@@ -272,4 +272,47 @@ const zeroCollected = parsePlaywrightJSON(
 assert.strictEqual(zeroCollected.status, 'error', '0개 수집 → status error (not passed)');
 assert.ok((zeroCollected.error || '').length > 0, '0개 수집 사유 노출');
 
+// === 타임아웃 실패: result.status 가 'failed' 가 아닌 'timedOut' 이어도 에러·첨부를 수집 ===
+const timedOut = parsePlaywrightJSON(
+  {
+    config: { projects: [{ name: 'chromium' }] },
+    suites: [
+      {
+        title: 'policy-notice.spec.ts',
+        file: 'policy-notice.spec.ts',
+        specs: [
+          {
+            title: '공지사항 새 창',
+            line: 157,
+            tests: [
+              {
+                projectName: 'chromium',
+                status: 'unexpected',
+                results: [
+                  {
+                    status: 'timedOut',
+                    duration: 31423,
+                    retry: 0,
+                    error: { message: 'Test timeout of 30000ms exceeded.' },
+                    steps: [],
+                    attachments: [
+                      { name: 'screenshot', contentType: 'image/png', path: '/tmp/test-failed-1.png' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        suites: [],
+      },
+    ],
+    stats: { duration: 31423, expected: 0, unexpected: 1, flaky: 0, skipped: 0 },
+  },
+  'biz-mall', '2026-10-26'
+);
+assert.strictEqual(timedOut.failures.length, 1, 'timedOut 도 실패로 수집');
+assert.strictEqual(timedOut.failures[0].error, 'Test timeout of 30000ms exceeded.', 'timedOut 에러 메시지');
+assert.strictEqual(timedOut.failures[0].attachments.length, 1, 'timedOut 첨부(스크린샷) 수집');
+
 console.log('✅ All parse-pw-results tests passed');
