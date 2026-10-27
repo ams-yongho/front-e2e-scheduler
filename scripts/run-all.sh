@@ -36,13 +36,28 @@ else
 fi
 
 # 3) 프로젝트별 실행 (실패해도 다음으로 진행)
-for config in "$PROJECTS_DIR"/*/config.json; do
-  [[ -f "$config" ]] || continue
-  project=$(node -p "require('$config').name")
+#    항상 한 번에 한 프로젝트씩 순차 실행한다 — 동시 실행하지 않는다.
+#    로컬 포트를 고정해 쓰는 프로젝트(config 의 exclusive_port)끼리 겹치지 않도록
+#    실행 순서를 config.json 의 order(기본 100) 오름차순 → 이름 순으로 명시적으로 고정한다.
+#    디렉토리 이름 알파벳 순에 기대면 프로젝트가 추가될 때 순서가 조용히 바뀐다.
+ORDERED_PROJECTS=$(node -e "
+const fs = require('fs');
+const path = require('path');
+const dir = '$PROJECTS_DIR';
+const list = fs.readdirSync(dir)
+  .filter(d => fs.existsSync(path.join(dir, d, 'config.json')))
+  .map(d => require(path.join(dir, d, 'config.json')))
+  .map(c => ({ name: c.name, order: typeof c.order === 'number' ? c.order : 100 }))
+  .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name));
+console.log(list.map(p => p.name).join('\n'));
+")
+
+while IFS= read -r project; do
+  [[ -n "$project" ]] || continue
   echo "--- Running: $project ---"
   bash "$SCRIPT_DIR/run-project.sh" "$project" \
     || echo "[WARN] $project finished with errors, continuing..."
-done
+done <<< "$ORDERED_PROJECTS"
 
 # 4) manifest.json 생성 (projects + tests 맵 + lastUpdated)
 node -e "

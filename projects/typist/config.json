@@ -6,6 +6,8 @@
     "branch": "develop"
   },
   "slack_channel": "#qa-alerts",
-  "e2e_command": "pnpm playwright test --reporter=json",
+  "e2e_command": "CI=1 pnpm playwright test --reporter=json",
+  "exclusive_port": 3000,
+  "order": 200,
   "unit_command": "pnpm vitest run --reporter=json"
 }

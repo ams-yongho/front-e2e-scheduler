@@ -7,6 +7,8 @@
   },
   "slack_channel": "#qa-alerts",
   "e2e_command": "PLAYWRIGHT_BASE_URL=https://scm-staging.amass.co.kr pnpm playwright test -c playwright.staging.config.ts --reporter=json",
+  "e2e_shards": 6,
+  "e2e_timeout_seconds": 1200,
   "unit_command": "pnpm vitest run --reporter=json",
   "unit_timeout_seconds": 1800
 }
